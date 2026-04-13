@@ -1,0 +1,50 @@
+[package]
+name = "careermind-rag"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web 框架
+tokio = { version = "1.35", features = ["full"] }
+axum = { version = "0.7", features = ["multipart"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# 序列化/反序列化
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# 数据库
+sqlx = { version = "0.7", features = ["runtime-tokio", "mysql", "chrono", "json"] }
+
+# HTTP 客户端（调用 Gemini API）
+reqwest = { version = "0.11", features = ["json"] }
+
+# 错误处理
+thiserror = "1.0"
+anyhow = "1.0"
+
+# 配置管理
+dotenvy = "0.15"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 时间处理
+chrono = { version = "0.4", features = ["serde"] }
+
+# 文档解析
+pdf-extract = "0.10"
+docx-rs = "0.4"
+pulldown-cmark = "0.9"
+scraper = "0.18"
+
+# 文件处理
+tempfile = "3.8"
+
+# UUID
+uuid = { version = "1.6", features = ["v4"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
