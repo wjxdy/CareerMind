@@ -30,7 +30,7 @@ public class KnowledgeBaseClient {
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("query", query);
             requestBody.put("top_k", 5);
-            requestBody.put("score_threshold", 0.7);
+            requestBody.put("score_threshold", 0.5);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

@@ -1,6 +1,6 @@
 use crate::{
     db::DbPool,
-    embedding::GeminiClient,
+    embedding::EmbeddingClient,
     error::{AppError, Result},
     models::*,
     qdrant::QdrantClient,
@@ -9,12 +9,12 @@ use crate::{
 pub struct RetrieveService {
     db: DbPool,
     qdrant: QdrantClient,
-    gemini: GeminiClient,
+    embedding: EmbeddingClient,
 }
 
 impl RetrieveService {
-    pub fn new(db: DbPool, qdrant: QdrantClient, gemini: GeminiClient) -> Self {
-        Self { db, qdrant, gemini }
+    pub fn new(db: DbPool, qdrant: QdrantClient, embedding: EmbeddingClient) -> Self {
+        Self { db, qdrant, embedding }
     }
 
     pub async fn search(
@@ -25,7 +25,7 @@ impl RetrieveService {
         score_threshold: f32,
     ) -> Result<QueryResponse> {
         // Get embedding for query
-        let query_vector = self.gemini.embed_query(&query).await?;
+        let query_vector = self.embedding.embed_query(&query).await?;
 
         // Search Qdrant
         let results = self.qdrant.search(query_vector, kb_id, top_k).await?;

@@ -74,7 +74,15 @@ module.exports = defineConfig({
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: {
+        ...devices['Desktop Firefox'],
+        launchOptions: {
+          firefoxUserPrefs: {
+            'network.stricttransportsecurity.preloadlist': false,
+            'security.enterprise_roots.enabled': true,
+          },
+        },
+      },
     },
     {
       name: 'webkit',

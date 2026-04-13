@@ -1,7 +1,7 @@
 use crate::{
     chunking::chunk_text,
     db::DbPool,
-    embedding::GeminiClient,
+    embedding::EmbeddingClient,
     error::{AppError, Result},
     models::*,
     parser::get_parser,
@@ -15,7 +15,7 @@ use uuid::Uuid;
 pub struct DocService {
     db: DbPool,
     qdrant: QdrantClient,
-    gemini: GeminiClient,
+    embedding: EmbeddingClient,
     upload_dir: String,
     max_file_size: usize,
 }
@@ -24,14 +24,14 @@ impl DocService {
     pub fn new(
         db: DbPool,
         qdrant: QdrantClient,
-        gemini: GeminiClient,
+        embedding: EmbeddingClient,
         upload_dir: String,
         max_file_size: usize,
     ) -> Self {
         Self {
             db,
             qdrant,
-            gemini,
+            embedding,
             upload_dir,
             max_file_size,
         }
@@ -144,7 +144,7 @@ impl DocService {
         let chunks = chunk_text(&text, kb.chunk_size as usize, kb.chunk_overlap as usize);
 
         // Get embeddings for all chunks
-        let embeddings = self.gemini.embed_batch(&chunks, "RETRIEVAL_DOCUMENT").await?;
+        let embeddings = self.embedding.embed_batch(&chunks, "RETRIEVAL_DOCUMENT").await?;
 
         // Prepare points for Qdrant
         let mut qdrant_points = Vec::new();

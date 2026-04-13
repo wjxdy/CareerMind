@@ -12,7 +12,7 @@ mod services;
 use crate::{
     config::Config,
     db::DbPool,
-    embedding::GeminiClient,
+    embedding::{EmbeddingClient, GeminiClient, QwenClient},
     qdrant::QdrantClient,
     services::{DocService, KbService, RetrieveService},
 };
@@ -38,20 +38,39 @@ async fn main() -> anyhow::Result<()> {
     let db = DbPool::new(&config.database_url).await?;
     info!("Database connected");
 
+    // Initialize embedding client based on provider
+    let embedding_client = match config.embedding_provider.as_str() {
+        "gemini" => {
+            info!("Using Gemini embedding provider");
+            EmbeddingClient::Gemini(GeminiClient::new(
+                config.gemini_api_key.clone(),
+                config.gemini_model.clone(),
+                config.gemini_dimension,
+            ))
+        }
+        _ => {
+            info!("Using Qwen embedding provider");
+            EmbeddingClient::Qwen(QwenClient::new(
+                config.qwen_api_key.clone(),
+                config.qwen_base_url.clone(),
+                config.qwen_model.clone(),
+                config.qwen_dimension,
+            ))
+        }
+    };
+
+    let vector_dimension = match &embedding_client {
+        EmbeddingClient::Gemini(_) => config.gemini_dimension,
+        EmbeddingClient::Qwen(_) => config.qwen_dimension,
+    };
+
     // Initialize Qdrant
     let qdrant = QdrantClient::new(
         config.qdrant_url.clone(),
         config.qdrant_collection.clone(),
     );
-    qdrant.ensure_collection(config.gemini_dimension).await?;
+    qdrant.ensure_collection(vector_dimension).await?;
     info!("Qdrant connected");
-
-    // Initialize Gemini client
-    let gemini = GeminiClient::new(
-        config.gemini_api_key.clone(),
-        config.gemini_model.clone(),
-        config.gemini_dimension,
-    );
 
     // Create upload directory
     tokio::fs::create_dir_all(&config.upload_dir).await?;
@@ -61,11 +80,11 @@ async fn main() -> anyhow::Result<()> {
     let doc_service = DocService::new(
         db.clone(),
         qdrant.clone(),
-        gemini.clone(),
+        embedding_client.clone(),
         config.upload_dir.clone(),
         config.max_file_size,
     );
-    let retrieve_service = RetrieveService::new(db.clone(), qdrant.clone(), gemini.clone());
+    let retrieve_service = RetrieveService::new(db.clone(), qdrant.clone(), embedding_client.clone());
 
     // Build router
     let app = Router::new()

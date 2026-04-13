@@ -26,5 +26,5 @@ export const kbApi = {
     request.delete(`/kb/${kbId}/documents/${docId}`),
 
   queryKb: (kbId: number, query: string): Promise<{ query: string; results: QueryResult[] }> =>
-    request.post(`/kb/${kbId}/query`, { query, top_k: 5, score_threshold: 0.7 }),
+    request.post(`/kb/${kbId}/query`, { query, top_k: 5, score_threshold: 0.5 }),
 }
