@@ -17,6 +17,7 @@ public class TaskDto {
     private String constraints;
     private TaskStatus status;
     private List<AgentDto> agents;
+    private Long kbId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

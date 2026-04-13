@@ -7,6 +7,7 @@ export interface CreateTaskData {
   goal?: string
   constraints?: string
   agentIds: number[]
+  kbId?: number
 }
 
 export const taskApi = {

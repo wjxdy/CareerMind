@@ -1,5 +1,6 @@
 package com.careermind.service.impl;
 
+import com.careermind.client.KnowledgeBaseClient;
 import com.careermind.domain.*;
 import com.careermind.dto.*;
 import com.careermind.enums.*;
@@ -30,6 +31,7 @@ public class DiscussionEngineImpl implements DiscussionEngine {
     private final DiscussionWebSocketHandler webSocketHandler;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final KnowledgeBaseClient knowledgeBaseClient;
 
     @Override
     @Transactional
@@ -332,6 +334,15 @@ public class DiscussionEngineImpl implements DiscussionEngine {
             prompt.append("约束条件：").append(task.getConstraints()).append("\n");
         }
         prompt.append("\n");
+
+        // 注入知识库检索结果
+        if (task.getKbId() != null) {
+            String ragContext = knowledgeBaseClient.queryKnowledgeBase(task.getKbId(), task.getGoal());
+            if (!ragContext.isEmpty()) {
+                prompt.append(ragContext);
+                prompt.append("\n");
+            }
+        }
 
         RoundType roundType = round.getRoundType();
 

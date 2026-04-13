@@ -49,6 +49,9 @@
               <el-dropdown-item command="home">
                 <el-icon><Home /></el-icon> 返回首页
               </el-dropdown-item>
+              <el-dropdown-item command="kb">
+                <el-icon><Collection /></el-icon> 知识库
+              </el-dropdown-item>
               <el-dropdown-item command="agents">
                 <el-icon><Setting /></el-icon> 管理Agent
               </el-dropdown-item>
@@ -128,6 +131,9 @@ const handleCommand = (command: string) => {
   switch (command) {
     case 'home':
       router.push('/')
+      break
+    case 'kb':
+      router.push('/kb')
       break
     case 'agents':
       router.push('/agents')

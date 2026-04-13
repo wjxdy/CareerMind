@@ -2,6 +2,7 @@ use crate::error::{AppError, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone)]
 pub struct GeminiClient {
     api_key: String,
     model: String,
