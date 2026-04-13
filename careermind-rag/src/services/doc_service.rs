@@ -11,6 +11,7 @@ use std::path::Path;
 use tokio::fs;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct DocService {
     db: DbPool,
     qdrant: QdrantClient,
@@ -83,13 +84,21 @@ impl DocService {
 
         let doc_id = row.last_insert_id() as i64;
 
-        // Process document
-        match self.process_document(doc_id, kb_id, content, file_type.as_str()).await {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(e);
+        // Spawn background processing so upload returns immediately
+        let service = self.clone();
+        let file_type_str = file_type.as_str().to_string();
+        tokio::spawn(async move {
+            if let Err(e) = service.process_document(doc_id, kb_id, content, &file_type_str).await {
+                tracing::error!("Document {} processing failed: {}", doc_id, e);
+                let _ = sqlx::query("UPDATE documents SET status = 'FAILED', error_message = ? WHERE id = ?")
+                    .bind(e.to_string())
+                    .bind(doc_id)
+                    .execute(&service.db.pool)
+                    .await;
+            } else {
+                tracing::info!("Document {} processed successfully", doc_id);
             }
-        }
+        });
 
         self.get_by_id(doc_id).await
             .ok_or_else(|| AppError::NotFound("Document not found".to_string()))

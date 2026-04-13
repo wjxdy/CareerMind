@@ -62,7 +62,7 @@ impl IntoResponse for AppError {
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "INTERNAL_ERROR",
-                "Internal server error".to_string(),
+                self.to_string(),
             ),
         };
 
