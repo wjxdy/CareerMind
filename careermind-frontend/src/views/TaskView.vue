@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import { taskApi } from '@/api/task'
@@ -70,13 +70,23 @@ import type { Task, TaskStatus } from '@/types'
 const route = useRoute()
 const router = useRouter()
 const agentStore = useAgentStore()
-const taskId = Number(route.params.id)
+const taskId = computed(() => Number(route.params.id))
 
 const task = ref<Task | null>(null)
 
 onMounted(async () => {
-  task.value = await taskApi.getTaskById(taskId)
+  await loadTask()
 })
+
+watch(taskId, async (newTaskId, oldTaskId) => {
+  if (newTaskId !== oldTaskId) {
+    await loadTask()
+  }
+})
+
+const loadTask = async () => {
+  task.value = await taskApi.getTaskById(taskId.value)
+}
 
 const getAgentColor = (type: string) => agentStore.getAgentColor(type)
 
@@ -102,8 +112,8 @@ const getStatusLabel = (status: TaskStatus) => {
   return labels[status] || status
 }
 
-const goToDiscussion = () => router.push(`/discussions/${taskId}`)
-const goToResult = () => router.push(`/results/${taskId}`)
+const goToDiscussion = () => router.push(`/discussions/${taskId.value}`)
+const goToResult = () => router.push(`/results/${taskId.value}`)
 </script>
 
 <style scoped>

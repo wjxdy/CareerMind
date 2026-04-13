@@ -144,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { marked } from 'marked'
@@ -154,7 +154,7 @@ import type { MergeResult } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
-const taskId = Number(route.params.taskId)
+const taskId = computed(() => Number(route.params.taskId))
 
 const loading = ref(false)
 const mergeResult = ref<MergeResult | null>(null)
@@ -171,8 +171,19 @@ onUnmounted(() => {
   ws?.close()
 })
 
+// 监听 taskId 变化，切换结果页时重新加载
+watch(taskId, async (newTaskId, oldTaskId) => {
+  if (newTaskId !== oldTaskId) {
+    ws?.close()
+    isStreaming.value = false
+    streamingContent.value = ''
+    connectWebSocket()
+    await fetchMergeResult()
+  }
+})
+
 const connectWebSocket = () => {
-  const wsUrl = `ws://${window.location.host}/ws/discussion?taskId=${taskId}`
+  const wsUrl = `ws://${window.location.host}/ws/discussion?taskId=${taskId.value}`
   ws = new WebSocket(wsUrl)
 
   ws.onopen = () => {
@@ -215,7 +226,7 @@ const connectWebSocket = () => {
 const fetchMergeResult = async () => {
   loading.value = true
   try {
-    mergeResult.value = await mergeApi.getMergeResult(taskId)
+    mergeResult.value = await mergeApi.getMergeResult(taskId.value)
   } catch (error: any) {
     // 结果不存在，静默处理，显示生成按钮
     if (error?.response?.status === 404) {
@@ -232,7 +243,7 @@ const fetchMergeResult = async () => {
 
 const generateResult = async () => {
   try {
-    await mergeApi.generateMergeResult(taskId)
+    await mergeApi.generateMergeResult(taskId.value)
     ElMessage.info('正在生成结果，请稍候...')
   } catch (error) {
     ElMessage.error('生成结果失败')

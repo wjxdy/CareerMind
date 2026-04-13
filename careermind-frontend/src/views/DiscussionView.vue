@@ -2,18 +2,19 @@
   <div class="page-layout">
     <Sidebar />
     <main class="page-content">
-      <DiscussionPanel :task-id="Number(taskId)" />
+      <DiscussionPanel :task-id="Number(taskId.value)" />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import DiscussionPanel from '@/components/discussion/DiscussionPanel.vue'
 
 const route = useRoute()
-const taskId = route.params.taskId as string
+const taskId = computed(() => route.params.taskId as string)
 </script>
 
 <style scoped>
