@@ -38,6 +38,7 @@ export interface Task {
   constraints?: string
   status: TaskStatus
   agents: Agent[]
+  kbId?: number
   createdAt: string
   updatedAt: string
 }
@@ -95,6 +96,16 @@ export interface MergeResult {
   plans: Plan[]
   blindSpots: string[]
   convergenceRate: number
+}
+
+// 创建任务数据
+export interface CreateTaskData {
+  title: string
+  background?: string
+  goal?: string
+  constraints?: string
+  agentIds: number[]
+  kbId?: number
 }
 
 // API响应

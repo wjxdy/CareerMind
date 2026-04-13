@@ -38,6 +38,7 @@ public class TaskServiceImpl implements TaskService {
                 .status(TaskStatus.PENDING)
                 .user(new com.careermind.domain.User() {{ setId(userId); }})
                 .agents(agents)
+                .kbId(request.getKbId())
                 .build();
 
         return taskRepository.save(task);
@@ -82,6 +83,7 @@ public class TaskServiceImpl implements TaskService {
                 .constraints(task.getConstraints())
                 .status(task.getStatus())
                 .agents(agentDtos)
+                .kbId(task.getKbId())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .build();

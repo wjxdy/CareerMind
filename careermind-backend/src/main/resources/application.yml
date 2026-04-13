@@ -55,6 +55,11 @@ llm:
     temperature: 0.7
     max-tokens: 2000
 
+# RAG 服务配置
+rag:
+  service:
+    url: ${RAG_SERVICE_URL:http://localhost:3000}
+
 logging:
   level:
     com.careermind: DEBUG

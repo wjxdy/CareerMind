@@ -19,4 +19,6 @@ public class TaskCreateRequest {
 
     @NotEmpty(message = "至少需要选择一个Agent")
     private List<Long> agentIds;
+
+    private Long kbId;
 }

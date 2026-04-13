@@ -65,6 +65,9 @@ public class Task {
     @JsonIgnore
     private MergeResult mergeResult;
 
+    @Column(name = "kb_id")
+    private Long kbId;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

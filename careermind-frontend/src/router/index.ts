@@ -53,6 +53,12 @@ const router = createRouter({
       component: () => import('@/views/SettingsView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/kb',
+      name: 'KnowledgeBase',
+      component: () => import('@/views/KbView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

@@ -112,6 +112,25 @@
             </div>
           </div>
         </el-form-item>
+
+        <el-form-item label="关联知识库（可选）" prop="kbId">
+          <el-select
+            v-model="createForm.kbId"
+            placeholder="选择知识库为讨论提供背景资料"
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="kb in kbList"
+              :key="kb.id"
+              :label="kb.name"
+              :value="kb.id"
+            />
+          </el-select>
+          <div class="form-tip">
+            <el-icon><InfoFilled /></el-icon> 选择知识库后，Agent会参考库中资料进行讨论
+          </div>
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -133,6 +152,8 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import { useTaskStore } from '@/stores/task'
 import { useAgentStore } from '@/stores/agent'
 import type { TaskStatus } from '@/types'
+import { kbApi } from '@/api/kb'
+import type { KnowledgeBase } from '@/types/kb'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -143,13 +164,25 @@ const showCreateDialog = ref(false)
 const creating = ref(false)
 const formRef = ref<FormInstance>()
 
+const kbList = ref<KnowledgeBase[]>([])
+
 const createForm = reactive({
   title: localStorage.getItem('tempQuestion')?.slice(0, 6) || '',
   background: localStorage.getItem('userBio') || '',
   goal: localStorage.getItem('tempQuestion') || '',
   constraints: '',
   agentIds: [] as number[],
+  kbId: undefined as number | undefined,
 })
+
+const fetchKbList = async () => {
+  try {
+    const res = await kbApi.getKbs({ page: 1, size: 100 })
+    kbList.value = res.items
+  } catch (error: any) {
+    console.error('获取知识库失败:', error.message)
+  }
+}
 
 // 监听目标/困惑变化，自动设置标题为前6个字
 watch(() => createForm.goal, (newGoal) => {
@@ -158,7 +191,7 @@ watch(() => createForm.goal, (newGoal) => {
   }
 })
 
-// 监听对话框打开，重新加载个人简介
+// 监听对话框打开，重新加载个人简介和知识库
 watch(() => showCreateDialog.value, (isOpen) => {
   if (isOpen) {
     const savedBio = localStorage.getItem('userBio')
@@ -173,6 +206,9 @@ watch(() => showCreateDialog.value, (isOpen) => {
         .map(a => a.id)
       createForm.agentIds = presetIds
     }
+    fetchKbList()
+  } else {
+    createForm.kbId = undefined
   }
 })
 
