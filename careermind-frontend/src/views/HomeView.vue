@@ -33,39 +33,39 @@
               @keydown.enter.prevent="handleSubmit"
             />
 
-            <!-- 已选择的专家预览 -->
-            <div class="selected-agents-preview" v-if="userStore.isLoggedIn && selectedAgents.length > 0">
-              <div class="preview-list">
-                <el-tag
-                  v-for="agent in selectedAgentList"
-                  :key="agent.id"
-                  class="agent-tag"
-                  :style="{ backgroundColor: agentStore.getAgentColor(agent.type) + '20', borderColor: agentStore.getAgentColor(agent.type), color: agentStore.getAgentColor(agent.type) }"
-                >
-                  {{ agent.name }}
-                </el-tag>
-                <el-button class="edit-btn" text size="small" @click="showAgentDialog = true">
-                  <el-icon><Edit /></el-icon>
-                  修改选择
-                </el-button>
+            <!-- 已选择的专家和知识库预览 -->
+            <div class="input-meta-bar" v-if="userStore.isLoggedIn">
+              <div class="meta-left" v-if="selectedAgents.length > 0">
+                <div class="preview-list">
+                  <el-tag
+                    v-for="agent in selectedAgentList"
+                    :key="agent.id"
+                    class="agent-tag"
+                    :style="{ backgroundColor: agentStore.getAgentColor(agent.type) + '20', borderColor: agentStore.getAgentColor(agent.type), color: agentStore.getAgentColor(agent.type) }"
+                  >
+                    {{ agent.name }}
+                  </el-tag>
+                  <el-button class="edit-btn" text size="small" @click="showAgentDialog = true">
+                    <el-icon><Edit /></el-icon>
+                    修改选择
+                  </el-button>
+                </div>
               </div>
-            </div>
-
-            <!-- 已关联的知识库预览 -->
-            <div class="selected-kb-preview" v-if="userStore.isLoggedIn">
-              <div class="preview-list">
-                <el-tag
-                  v-if="selectedKb"
-                  class="kb-tag"
-                  effect="light"
-                  type="success"
-                >
-                  {{ selectedKb.name }}
-                </el-tag>
-                <el-button class="edit-btn" text size="small" @click="showKbDialog = true">
-                  <el-icon><Edit /></el-icon>
-                  {{ selectedKb ? '修改关联' : '关联知识库' }}
-                </el-button>
+              <div class="meta-right">
+                <div class="preview-list">
+                  <el-tag
+                    v-if="selectedKb"
+                    class="kb-tag"
+                    effect="light"
+                    type="success"
+                  >
+                    {{ selectedKb.name }}
+                  </el-tag>
+                  <el-button class="edit-btn" text size="small" @click="showKbDialog = true">
+                    <el-icon><Edit /></el-icon>
+                    {{ selectedKb ? '修改关联' : '关联知识库' }}
+                  </el-button>
+                </div>
               </div>
             </div>
 
@@ -526,9 +526,18 @@ const handleSubmit = async () => {
   border-color: #0ea5e9;
 }
 
-/* 已选择的专家预览 */
-.selected-agents-preview {
+.input-meta-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-top: 12px;
+  gap: 16px;
+}
+
+.meta-left,
+.meta-right {
+  display: flex;
+  align-items: center;
 }
 
 .preview-list {
@@ -547,7 +556,8 @@ const handleSubmit = async () => {
   color: #6b7280;
 }
 
-.agent-tag {
+.agent-tag,
+.kb-tag {
   font-size: 13px;
 }
 
@@ -561,21 +571,6 @@ const handleSubmit = async () => {
   border-radius: 8px;
   padding: 12px 32px;
   font-size: 16px;
-}
-
-.selected-kb-preview {
-  margin-top: 12px;
-}
-
-.selected-kb-preview .preview-list {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.kb-tag {
-  font-size: 13px;
 }
 
 .features {
