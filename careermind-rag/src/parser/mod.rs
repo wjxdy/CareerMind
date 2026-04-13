@@ -5,11 +5,11 @@ pub mod markdown;
 pub mod pdf;
 pub mod word;
 
-pub trait DocumentParser {
+pub trait DocumentParser: Send {
     fn parse(&self, content: &[u8]) -> Result<String>;
 }
 
-pub fn get_parser(file_type: &str) -> Option<Box<dyn DocumentParser>> {
+pub fn get_parser(file_type: &str) -> Option<Box<dyn DocumentParser + Send>> {
     match file_type {
         "PDF" => Some(Box::new(pdf::PdfParser)),
         "WORD" => Some(Box::new(word::WordParser)),

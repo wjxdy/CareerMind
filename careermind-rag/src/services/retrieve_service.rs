@@ -33,7 +33,7 @@ impl RetrieveService {
         // Filter by score threshold and fetch document info
         let mut retrieval_results = Vec::new();
 
-        for (vector_id, score, payload) in results {
+        for (_vector_id, score, payload) in results {
             if score < score_threshold {
                 continue;
             }

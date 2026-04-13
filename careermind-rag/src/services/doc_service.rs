@@ -16,6 +16,7 @@ pub struct DocService {
     qdrant: QdrantClient,
     gemini: GeminiClient,
     upload_dir: String,
+    max_file_size: usize,
 }
 
 impl DocService {
@@ -24,12 +25,14 @@ impl DocService {
         qdrant: QdrantClient,
         gemini: GeminiClient,
         upload_dir: String,
+        max_file_size: usize,
     ) -> Self {
         Self {
             db,
             qdrant,
             gemini,
             upload_dir,
+            max_file_size,
         }
     }
 
@@ -38,12 +41,11 @@ impl DocService {
         kb_id: i64,
         filename: String,
         content: Vec<u8>,
-        max_size: usize,
     ) -> Result<Document> {
-        if content.len() > max_size {
+        if content.len() > self.max_file_size {
             return Err(AppError::FileTooLarge {
                 size: content.len() as u64,
-                max: max_size as u64,
+                max: self.max_file_size as u64,
             });
         }
 
