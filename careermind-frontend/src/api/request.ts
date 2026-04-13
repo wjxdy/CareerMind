@@ -32,12 +32,12 @@ request.interceptors.response.use(
   (response) => {
     const res = response.data as ApiResponse<any>
 
-    if (res.code !== 200) {
+    if (res.code !== undefined && res.code !== 200) {
       ElMessage.error(res.message || '请求失败')
       return Promise.reject(new Error(res.message || '请求失败'))
     }
 
-    return res.data
+    return res.data !== undefined ? res.data : response.data
   },
   (error) => {
     // 404 错误静默处理（讨论不存在、结果不存在等预期内的情况）

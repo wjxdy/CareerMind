@@ -40,8 +40,8 @@ class LoginPage {
     await this.fillEmail(email);
     await this.fillPassword(password);
     await this.clickLogin();
-    // 等待登录请求完成
-    await this.page.waitForTimeout(1000);
+    // 等待登录请求完成（给后端足够响应时间）
+    await this.page.waitForTimeout(3000);
   }
 
   async expectLoginSuccess() {

@@ -13,7 +13,7 @@ const { expect } = require('@playwright/test');
 class TasksPage {
   constructor(page) {
     this.page = page;
-    this.createTaskButton = page.locator('button:has-text("新建任务"), .el-button--primary').first();
+    this.createTaskButton = page.locator('main.page-content button:has-text("新建咨询")').first();
     this.taskCards = page.locator('.task-card, .el-card, [class*="task"]').all();
     this.sidebar = page.locator('.sidebar, aside').first();
     this.userInfo = page.locator('.user-info, .el-dropdown').first();
