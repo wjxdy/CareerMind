@@ -51,22 +51,22 @@
               </div>
             </div>
 
-            <!-- 知识库选择 -->
-            <div v-if="userStore.isLoggedIn" class="kb-selector">
-              <el-select
-                v-model="selectedKbId"
-                placeholder="关联知识库（可选）"
-                clearable
-                style="width: 220px"
-                size="default"
-              >
-                <el-option
-                  v-for="kb in kbList"
-                  :key="kb.id"
-                  :label="kb.name"
-                  :value="kb.id"
-                />
-              </el-select>
+            <!-- 已关联的知识库预览 -->
+            <div class="selected-kb-preview" v-if="userStore.isLoggedIn">
+              <div class="preview-list">
+                <el-tag
+                  v-if="selectedKb"
+                  class="kb-tag"
+                  effect="light"
+                  type="success"
+                >
+                  {{ selectedKb.name }}
+                </el-tag>
+                <el-button class="edit-btn" text size="small" @click="showKbDialog = true">
+                  <el-icon><Edit /></el-icon>
+                  {{ selectedKb ? '修改关联' : '关联知识库' }}
+                </el-button>
+              </div>
             </div>
 
             <div class="input-actions">
@@ -211,6 +211,54 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 知识库选择弹窗 -->
+    <el-dialog
+      v-model="showKbDialog"
+      title="关联知识库"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <div class="kb-dialog-content">
+        <div class="dialog-header">
+          <span>选择一个知识库（可选）</span>
+          <el-button type="primary" text size="small" @click="selectedKbId = undefined">
+            清除选择
+          </el-button>
+        </div>
+
+        <div class="kb-grid">
+          <div
+            v-for="kb in kbList"
+            :key="kb.id"
+            class="kb-card"
+            :class="{ selected: selectedKbId === kb.id }"
+            @click="selectedKbId = kb.id"
+          >
+            <div class="kb-header">
+              <el-icon :size="24" color="#10b981"><DocumentChecked /></el-icon>
+              <div class="kb-check" v-if="selectedKbId === kb.id">
+                <el-icon><Check /></el-icon>
+              </div>
+            </div>
+            <div class="kb-name">{{ kb.name }}</div>
+            <div class="kb-desc">{{ kb.description || '暂无描述' }}</div>
+          </div>
+        </div>
+
+        <div class="dialog-tip" v-if="kbList.length === 0">
+          <el-icon><InfoFilled /></el-icon>
+          暂无知识库，请先前往知识库页面创建
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="showKbDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmKbSelection">
+          确认{{ selectedKb ? '（已选择: ' + selectedKb.name + '）' : '（不关联知识库）' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -234,6 +282,12 @@ const selectedAgents = ref<number[]>([])
 const showAgentDialog = ref(false)
 const kbList = ref<KnowledgeBase[]>([])
 const selectedKbId = ref<number | undefined>(undefined)
+const showKbDialog = ref(false)
+
+// 已选择的知识库
+const selectedKb = computed(() => {
+  return kbList.value.find(kb => kb.id === selectedKbId.value)
+})
 
 // 预设 Agent
 const presetAgents = computed(() => agentStore.availableAgents.filter(a => a.isPreset))
@@ -302,6 +356,10 @@ const confirmAgentSelection = () => {
     return
   }
   showAgentDialog.value = false
+}
+
+const confirmKbSelection = () => {
+  showKbDialog.value = false
 }
 
 const selectQuickOption = (option: string) => {
@@ -505,10 +563,19 @@ const handleSubmit = async () => {
   font-size: 16px;
 }
 
-.kb-selector {
-  display: flex;
-  justify-content: flex-end;
+.selected-kb-preview {
   margin-top: 12px;
+}
+
+.selected-kb-preview .preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.kb-tag {
+  font-size: 13px;
 }
 
 .features {
@@ -644,5 +711,74 @@ const handleSubmit = async () => {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* 知识库选择弹窗 */
+.kb-dialog-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.kb-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.kb-card {
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.kb-card:hover {
+  background: #f3f4f6;
+}
+
+.kb-card.selected {
+  background: #d1fae5;
+  border-color: #10b981;
+}
+
+.kb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.kb-check {
+  width: 24px;
+  height: 24px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.kb-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.kb-card.selected .kb-name {
+  color: #10b981;
+}
+
+.kb-desc {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>
