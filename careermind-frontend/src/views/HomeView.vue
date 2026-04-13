@@ -51,6 +51,24 @@
               </div>
             </div>
 
+            <!-- 知识库选择 -->
+            <div v-if="userStore.isLoggedIn" class="kb-selector">
+              <el-select
+                v-model="selectedKbId"
+                placeholder="关联知识库（可选）"
+                clearable
+                style="width: 220px"
+                size="default"
+              >
+                <el-option
+                  v-for="kb in kbList"
+                  :key="kb.id"
+                  :label="kb.name"
+                  :value="kb.id"
+                />
+              </el-select>
+            </div>
+
             <div class="input-actions">
               <template v-if="userStore.isLoggedIn">
                 <el-button
@@ -204,6 +222,8 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import { useUserStore } from '@/stores/user'
 import { useAgentStore } from '@/stores/agent'
 import { taskApi } from '@/api/task'
+import { kbApi } from '@/api/kb'
+import type { KnowledgeBase } from '@/types/kb'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -212,6 +232,8 @@ const inputText = ref('')
 const loading = ref(false)
 const selectedAgents = ref<number[]>([])
 const showAgentDialog = ref(false)
+const kbList = ref<KnowledgeBase[]>([])
+const selectedKbId = ref<number | undefined>(undefined)
 
 // 预设 Agent
 const presetAgents = computed(() => agentStore.availableAgents.filter(a => a.isPreset))
@@ -247,6 +269,15 @@ onMounted(() => {
     }
   }, 100)
   setTimeout(() => clearInterval(checkAgents), 3000)
+
+  // 加载知识库列表
+  if (userStore.isLoggedIn) {
+    kbApi.getKbs({ page: 1, size: 100 }).then(res => {
+      kbList.value = res.items
+    }).catch(() => {
+      // 静默失败
+    })
+  }
 })
 
 const toggleAgent = (agentId: number) => {
@@ -325,7 +356,8 @@ const handleSubmit = async () => {
       background: userBio,
       goal: inputText.value,
       constraints: '',
-      agentIds: selectedAgents.value
+      agentIds: selectedAgents.value,
+      kbId: selectedKbId.value
     }
 
     const task = await taskApi.createTask(taskData)
@@ -471,6 +503,12 @@ const handleSubmit = async () => {
   border-radius: 8px;
   padding: 12px 32px;
   font-size: 16px;
+}
+
+.kb-selector {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 .features {
