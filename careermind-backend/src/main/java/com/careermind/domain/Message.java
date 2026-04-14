@@ -26,7 +26,7 @@ public class Message {
     private Round round;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "agent_id", nullable = false)
+    @JoinColumn(name = "agent_id", nullable = true)
     private Agent agent;
 
     @Column(name = "content", columnDefinition = "TEXT", nullable = false)
