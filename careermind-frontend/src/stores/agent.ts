@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Agent, CreateAgentData } from '@/types'
+import type { Agent } from '@/types'
+import type { CreateAgentData } from '@/api/agent'
 import { agentApi } from '@/api/agent'
 
 export const useAgentStore = defineStore('agent', () => {

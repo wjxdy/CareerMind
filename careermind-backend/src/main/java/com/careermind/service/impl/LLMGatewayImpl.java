@@ -88,7 +88,8 @@ public class LLMGatewayImpl {
             conversation.append("=== 专家讨论记录 ===\n\n");
 
             for (Message msg : messages) {
-                conversation.append("【").append(msg.getAgent().getName()).append("】\n");
+                String agentName = msg.getAgent() != null ? msg.getAgent().getName() : "用户";
+                conversation.append("【").append(agentName).append("】\n");
                 conversation.append(msg.getContent()).append("\n\n");
             }
 
@@ -115,7 +116,8 @@ public class LLMGatewayImpl {
             conversation.append("=== 专家讨论记录 ===\n\n");
 
             for (Message msg : messages) {
-                conversation.append("【").append(msg.getAgent().getName()).append("】\n");
+                String agentName = msg.getAgent() != null ? msg.getAgent().getName() : "用户";
+                conversation.append("【").append(agentName).append("】\n");
                 conversation.append(msg.getContent()).append("\n\n");
             }
 

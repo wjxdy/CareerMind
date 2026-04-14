@@ -26,7 +26,7 @@ public class Message {
     private Round round;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "agent_id", nullable = false)
+    @JoinColumn(name = "agent_id", nullable = true)
     private Agent agent;
 
     @Column(name = "content", columnDefinition = "TEXT", nullable = false)
@@ -34,6 +34,11 @@ public class Message {
 
     @Column(name = "reply_to_message_id")
     private Long replyToMessageId;  // 回复哪条消息
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "message_type")
+    @Builder.Default
+    private com.careermind.enums.MessageType messageType = com.careermind.enums.MessageType.AGENT;
 
     @Column(name = "is_final")
     @Builder.Default

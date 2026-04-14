@@ -40,6 +40,13 @@ public class Discussion {
     @Builder.Default
     private Boolean isPaused = false;
 
+    @Column(name = "has_user_interjection")
+    @Builder.Default
+    private Boolean hasUserInterjection = false;
+
+    @Column(name = "interjection_content", length = 2000)
+    private String interjectionContent;
+
     @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @OrderBy("roundNumber ASC")
     private List<Round> rounds;

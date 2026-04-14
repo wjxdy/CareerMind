@@ -63,7 +63,7 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
 
   // 只要有 token 就认为是登录状态（user 会在初始化时从 localStorage 恢复）

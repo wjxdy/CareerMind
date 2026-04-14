@@ -133,6 +133,7 @@ public class DiscussionEngineImpl implements DiscussionEngine {
             RoundType roundType = getRoundType(nextRoundNum);
             createRoundIfNotExists(discussion, nextRoundNum, roundType);
             discussion.setCurrentRound(nextRoundNum);
+            discussion.setIsPaused(false);
             discussion = discussionRepository.save(discussion);
 
             discussionRepository.flush();
@@ -257,6 +258,22 @@ public class DiscussionEngineImpl implements DiscussionEngine {
         } catch (Exception e) {
             log.error("标记轮次完成失败: {}", e.getMessage(), e);
         }
+
+        // 本轮结束后清空用户插话标记
+        try {
+            transactionTemplate.execute(status -> {
+                Discussion discussion = discussionRepository.findById(discussionId).orElse(null);
+                if (discussion != null && Boolean.TRUE.equals(discussion.getHasUserInterjection())) {
+                    discussion.setHasUserInterjection(false);
+                    discussion.setInterjectionContent(null);
+                    discussionRepository.save(discussion);
+                    log.info("用户插话标记已清空: Discussion ID={}", discussionId);
+                }
+                return null;
+            });
+        } catch (Exception e) {
+            log.error("清空用户插话标记失败: {}", e.getMessage(), e);
+        }
     }
 
     private void processAgentMessageStream(Agent agent, Long discussionId, Long taskId, int currentRound, RoundType roundType, List<Agent> allAgents) {
@@ -322,8 +339,13 @@ public class DiscussionEngineImpl implements DiscussionEngine {
         });
     }
 
+
     private String buildPrompt(Agent agent, Task task, Round round, List<Agent> allAgents, int currentRound, Long discussionId) {
         StringBuilder prompt = new StringBuilder();
+
+        Discussion discussion = discussionRepository.findById(discussionId).orElse(null);
+        boolean hasInterjection = discussion != null && Boolean.TRUE.equals(discussion.getHasUserInterjection());
+        String interjectionContent = hasInterjection ? discussion.getInterjectionContent() : null;
 
         // 基础信息
         prompt.append("你是").append(agent.getName()).append("。\n\n");
@@ -334,6 +356,12 @@ public class DiscussionEngineImpl implements DiscussionEngine {
             prompt.append("约束条件：").append(task.getConstraints()).append("\n");
         }
         prompt.append("\n");
+
+        if (hasInterjection && interjectionContent != null) {
+            prompt.append("=== 用户插话 ===\n");
+            prompt.append("用户在讨论中补充了以下内容，请在发言中适当参考：\n");
+            prompt.append(interjectionContent).append("\n\n");
+        }
 
         // 注入知识库检索结果
         if (task.getKbId() != null) {
@@ -366,7 +394,7 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                 if (!previousMessages.isEmpty()) {
                     prompt.append("=== 上一轮各位专家的观点 ===\n");
                     for (Message msg : previousMessages) {
-                        if (!msg.getAgent().getId().equals(agent.getId())) {
+                        if (msg.getAgent() != null && !msg.getAgent().getId().equals(agent.getId())) {
                             prompt.append("【").append(msg.getAgent().getName()).append("】\n");
                             prompt.append(msg.getContent()).append("\n\n");
                         }
@@ -395,8 +423,9 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                 // 找到针对当前Agent的质疑
                 List<String> challengesAgainstMe = new ArrayList<>();
                 for (Message msg : round2Messages) {
-                    if (msg.getContent().contains(agent.getName()) ||
-                        msg.getContent().contains("@" + agent.getName())) {
+                    if (msg.getAgent() != null &&
+                        (msg.getContent().contains(agent.getName()) ||
+                        msg.getContent().contains("@" + agent.getName()))) {
                         challengesAgainstMe.add(msg.getAgent().getName() + ": " + msg.getContent());
                     }
                 }
@@ -449,9 +478,11 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                     // 简单总结每个Agent的最终立场
                     Map<String, String> agentPositions = new HashMap<>();
                     for (Message msg : allMessages) {
-                        String agentName = msg.getAgent().getName();
-                        // 只保留每个Agent最新的观点
-                        agentPositions.put(agentName, msg.getContent().substring(0, Math.min(200, msg.getContent().length())));
+                        if (msg.getAgent() != null) {
+                            String agentName = msg.getAgent().getName();
+                            // 只保留每个Agent最新的观点
+                            agentPositions.put(agentName, msg.getContent().substring(0, Math.min(200, msg.getContent().length())));
+                        }
                     }
                     prompt.append("\n");
                 }
@@ -480,41 +511,47 @@ public class DiscussionEngineImpl implements DiscussionEngine {
     }
 
     @Override
-    @Transactional
     public DiscussionDto addUserMessage(Long taskId, String content) {
-        Discussion discussion = discussionRepository.findByTaskId(taskId)
-                .orElseThrow(() -> new RuntimeException("讨论不存在"));
+        DiscussionDto dto = transactionTemplate.execute(status -> {
+            Discussion discussion = discussionRepository.findByTaskId(taskId)
+                    .orElseThrow(() -> new RuntimeException("讨论不存在"));
 
-        // 获取当前轮次
-        Round round = roundRepository.findByDiscussionIdAndRoundNumber(
-                discussion.getId(), discussion.getCurrentRound())
-                .orElseThrow(() -> new RuntimeException("当前轮次不存在"));
+            Round round = roundRepository.findByDiscussionIdAndRoundNumber(
+                    discussion.getId(), discussion.getCurrentRound())
+                    .orElseThrow(() -> new RuntimeException("当前轮次不存在"));
 
-        // 创建用户消息（使用特殊标记表示用户消息）
-        Message userMessage = Message.builder()
-                .round(round)
-                .agent(null)  // 用户消息没有Agent
-                .content("【用户提问】" + content)
-                .isFinal(false)
-                .build();
-        messageRepository.save(userMessage);
+            Message userMessage = Message.builder()
+                    .round(round)
+                    .agent(null)
+                    .content("【用户提问】" + content)
+                    .messageType(MessageType.USER)
+                    .isFinal(false)
+                    .build();
+            messageRepository.save(userMessage);
 
-        // 通过WebSocket推送用户消息
-        webSocketHandler.sendMessageToTask(taskId, MessageDto.builder()
-                .id(userMessage.getId())
-                .agentId(-1L)  // 特殊标记表示用户
-                .agentName("用户")
-                .agentType("USER")
-                .agentAvatar(null)
-                .content("【用户提问】" + content)
-                .isFinal(false)
-                .createdAt(userMessage.getCreatedAt())
-                .build());
+            discussion.setHasUserInterjection(true);
+            discussion.setInterjectionContent(content);
+            discussionRepository.save(discussion);
 
-        log.info("用户消息已添加到讨论: Task ID={}, Round={}, Content={}",
-                taskId, round.getRoundNumber(), content.substring(0, Math.min(50, content.length())));
+            webSocketHandler.sendMessageToTask(taskId, MessageDto.builder()
+                    .id(userMessage.getId())
+                    .agentId(-1L)
+                    .agentName("用户")
+                    .agentType("USER")
+                    .agentAvatar(null)
+                    .content("【用户提问】" + content)
+                    .messageType(MessageType.USER.name())
+                    .isFinal(false)
+                    .createdAt(userMessage.getCreatedAt())
+                    .build());
 
-        return convertToDto(discussion);
+            log.info("用户消息已添加到讨论: Task ID={}, Round={}, Content={}",
+                    taskId, round.getRoundNumber(), content.substring(0, Math.min(50, content.length())));
+
+            return convertToDto(discussion);
+        });
+
+        return dto;
     }
 
     private DiscussionDto convertToDto(Discussion discussion) {
@@ -526,6 +563,8 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                 .currentRound(discussion.getCurrentRound())
                 .isActive(discussion.getIsActive())
                 .isPaused(discussion.getIsPaused())
+                .hasUserInterjection(discussion.getHasUserInterjection())
+                .interjectionContent(discussion.getInterjectionContent())
                 .rounds(rounds.stream().map(this::convertToRoundDto).collect(Collectors.toList()))
                 .build();
     }
@@ -546,12 +585,13 @@ public class DiscussionEngineImpl implements DiscussionEngine {
     private MessageDto convertToMessageDto(Message message) {
         return MessageDto.builder()
                 .id(message.getId())
-                .agentId(message.getAgent().getId())
-                .agentName(message.getAgent().getName())
-                .agentAvatar(message.getAgent().getAvatarUrl())
-                .agentType(message.getAgent().getType().name())
+                .agentId(message.getAgent() != null ? message.getAgent().getId() : -1L)
+                .agentName(message.getAgent() != null ? message.getAgent().getName() : "用户")
+                .agentAvatar(message.getAgent() != null ? message.getAgent().getAvatarUrl() : null)
+                .agentType(message.getAgent() != null ? message.getAgent().getType().name() : "USER")
                 .content(message.getContent())
                 .replyToMessageId(message.getReplyToMessageId())
+                .messageType(message.getMessageType() != null ? message.getMessageType().name() : MessageType.AGENT.name())
                 .isFinal(message.getIsFinal())
                 .createdAt(message.getCreatedAt())
                 .build();

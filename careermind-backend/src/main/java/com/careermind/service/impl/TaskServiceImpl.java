@@ -45,9 +45,15 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Task getTaskById(Long taskId) {
-        return taskRepository.findById(taskId)
+        Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task不存在"));
+        // 强制初始化懒加载的agents集合，确保JSON序列化时包含数据
+        if (task.getAgents() != null) {
+            task.getAgents().size();
+        }
+        return task;
     }
 
     @Override

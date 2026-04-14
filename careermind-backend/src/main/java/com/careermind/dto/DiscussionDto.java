@@ -13,5 +13,7 @@ public class DiscussionDto {
     private Integer currentRound;
     private Boolean isActive;
     private Boolean isPaused;
+    private Boolean hasUserInterjection;
+    private String interjectionContent;
     private List<RoundDto> rounds;
 }

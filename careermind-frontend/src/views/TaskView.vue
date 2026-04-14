@@ -44,6 +44,14 @@
           </div>
         </div>
 
+        <div class="detail-section">
+          <DecisionTree
+            :task="task"
+            :discussion="discussion"
+            :merge-result="mergeResult"
+          />
+        </div>
+
         <div class="detail-actions">
           <el-button type="primary" @click="goToDiscussion">
             <el-icon><ChatLineRound /></el-icon>
@@ -64,8 +72,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import { taskApi } from '@/api/task'
+import { discussionApi } from '@/api/discussion'
+import { mergeApi } from '@/api/merge'
 import { useAgentStore } from '@/stores/agent'
-import type { Task, TaskStatus } from '@/types'
+import DecisionTree from '@/components/task/DecisionTree.vue'
+import type { Task, TaskStatus, Discussion, MergeResult } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -73,6 +84,8 @@ const agentStore = useAgentStore()
 const taskId = computed(() => Number(route.params.id))
 
 const task = ref<Task | null>(null)
+const discussion = ref<Discussion | null>(null)
+const mergeResult = ref<MergeResult | null>(null)
 
 onMounted(async () => {
   await loadTask()
@@ -86,6 +99,12 @@ watch(taskId, async (newTaskId, oldTaskId) => {
 
 const loadTask = async () => {
   task.value = await taskApi.getTaskById(taskId.value)
+  const [disc, merge] = await Promise.allSettled([
+    discussionApi.getDiscussion(taskId.value),
+    mergeApi.getMergeResult(taskId.value).catch(() => null)
+  ])
+  discussion.value = disc.status === 'fulfilled' ? (disc.value as Discussion) : null
+  mergeResult.value = merge.status === 'fulfilled' ? (merge.value as MergeResult | null) : null
 }
 
 const getAgentColor = (type: string) => agentStore.getAgentColor(type)

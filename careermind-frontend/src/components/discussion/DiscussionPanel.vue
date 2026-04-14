@@ -59,6 +59,7 @@
             :is-streaming="true"
           />
         </div>
+
       </div>
     </div>
 
@@ -312,7 +313,6 @@ const sendMessage = async () => {
     await discussionApi.sendMessage(props.taskId, userInput.value)
     userInput.value = ''
     ElMessage.success('消息已发送')
-    // 刷新讨论以显示用户消息
     await loadDiscussion()
   } catch (error) {
     ElMessage.error('发送消息失败')
