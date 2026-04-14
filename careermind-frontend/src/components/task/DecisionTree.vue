@@ -45,7 +45,7 @@ const hasData = computed(() =>
   !!props.discussion && props.discussion.rounds.length > 0
 )
 
-const truncate = (text: string, len = 18) =>
+const truncate = (text: string, len = 10) =>
   text.length > len ? text.slice(0, len) + '...' : text
 
 const treeData = computed(() => {
@@ -76,7 +76,7 @@ const treeData = computed(() => {
       name: '候选方案',
       itemStyle: { color: '#10b981' },
       children: props.mergeResult.plans.map((p) => ({
-        name: truncate(p.title, 16),
+        name: truncate(p.title),
         value: `plan:${p.id}`,
         itemStyle: { color: p.isSelected ? '#10b981' : '#6b7280' }
       }))
@@ -98,17 +98,19 @@ const chartOption = computed(() => ({
     top: '5%',
     left: '5%',
     bottom: '5%',
-    right: '15%',
+    right: '20%',
     symbolSize: 10,
     orient: 'RL',
     label: {
       position: 'left',
       verticalAlign: 'middle',
       align: 'right',
-      fontSize: 12
+      fontSize: 12,
+      overflow: 'truncate',
+      width: 90
     },
     leaves: {
-      label: { position: 'right', verticalAlign: 'middle', align: 'left' }
+      label: { position: 'right', verticalAlign: 'middle', align: 'left', overflow: 'truncate', width: 90 }
     },
     expandAndCollapse: true,
     animationDuration: 300,

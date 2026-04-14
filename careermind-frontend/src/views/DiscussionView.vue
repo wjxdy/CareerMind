@@ -2,7 +2,7 @@
   <div class="page-layout">
     <Sidebar />
     <main class="page-content">
-      <DiscussionPanel :task-id="Number(taskId.value)" />
+      <DiscussionPanel :task-id="Number(taskId)" />
     </main>
   </div>
 </template>
