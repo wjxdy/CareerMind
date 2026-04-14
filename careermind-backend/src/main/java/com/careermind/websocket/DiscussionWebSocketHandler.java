@@ -3,6 +3,7 @@ package com.careermind.websocket;
 import com.careermind.dto.MessageDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -16,9 +17,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class DiscussionWebSocketHandler extends TextWebSocketHandler {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     // 存储taskId到session的映射
     private final Map<Long, WebSocketSession> taskSessions = new ConcurrentHashMap<>();
