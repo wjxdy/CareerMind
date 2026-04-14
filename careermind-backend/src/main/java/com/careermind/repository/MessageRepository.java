@@ -10,4 +10,5 @@ import java.util.List;
 public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findByRoundIdOrderByCreatedAtAsc(Long roundId);
     List<Message> findByRoundIdAndAgentId(Long roundId, Long agentId);
+    List<Message> findByRoundIdAndAgentIdAndMessageType(Long roundId, Long agentId, com.careermind.enums.MessageType messageType);
 }

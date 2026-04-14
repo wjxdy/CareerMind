@@ -15,6 +15,7 @@ public class MessageDto {
     private String agentType;
     private String content;
     private Long replyToMessageId;
+    private String messageType;
     private Boolean isFinal;
     private LocalDateTime createdAt;
 }
