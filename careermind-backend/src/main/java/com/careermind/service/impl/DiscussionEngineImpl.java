@@ -133,6 +133,7 @@ public class DiscussionEngineImpl implements DiscussionEngine {
             RoundType roundType = getRoundType(nextRoundNum);
             createRoundIfNotExists(discussion, nextRoundNum, roundType);
             discussion.setCurrentRound(nextRoundNum);
+            discussion.setIsPaused(false);
             discussion = discussionRepository.save(discussion);
 
             discussionRepository.flush();
@@ -393,7 +394,7 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                 if (!previousMessages.isEmpty()) {
                     prompt.append("=== 上一轮各位专家的观点 ===\n");
                     for (Message msg : previousMessages) {
-                        if (!msg.getAgent().getId().equals(agent.getId())) {
+                        if (msg.getAgent() != null && !msg.getAgent().getId().equals(agent.getId())) {
                             prompt.append("【").append(msg.getAgent().getName()).append("】\n");
                             prompt.append(msg.getContent()).append("\n\n");
                         }
@@ -422,8 +423,9 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                 // 找到针对当前Agent的质疑
                 List<String> challengesAgainstMe = new ArrayList<>();
                 for (Message msg : round2Messages) {
-                    if (msg.getContent().contains(agent.getName()) ||
-                        msg.getContent().contains("@" + agent.getName())) {
+                    if (msg.getAgent() != null &&
+                        (msg.getContent().contains(agent.getName()) ||
+                        msg.getContent().contains("@" + agent.getName()))) {
                         challengesAgainstMe.add(msg.getAgent().getName() + ": " + msg.getContent());
                     }
                 }
@@ -476,9 +478,11 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                     // 简单总结每个Agent的最终立场
                     Map<String, String> agentPositions = new HashMap<>();
                     for (Message msg : allMessages) {
-                        String agentName = msg.getAgent().getName();
-                        // 只保留每个Agent最新的观点
-                        agentPositions.put(agentName, msg.getContent().substring(0, Math.min(200, msg.getContent().length())));
+                        if (msg.getAgent() != null) {
+                            String agentName = msg.getAgent().getName();
+                            // 只保留每个Agent最新的观点
+                            agentPositions.put(agentName, msg.getContent().substring(0, Math.min(200, msg.getContent().length())));
+                        }
                     }
                     prompt.append("\n");
                 }
