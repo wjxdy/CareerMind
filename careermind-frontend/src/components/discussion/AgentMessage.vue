@@ -41,7 +41,7 @@ const props = defineProps<{
 
 const agentStore = useAgentStore()
 
-const isUserMessage = computed(() => props.message.agentType === 'USER' || props.message.agentId === -1)
+const isUserMessage = computed(() => props.message.messageType === 'USER' || props.message.agentId === -1)
 const isInterjection = computed(() => props.message.messageType === 'INTERJECTION')
 
 const displayName = computed(() => {

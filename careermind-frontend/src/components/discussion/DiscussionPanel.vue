@@ -59,7 +59,26 @@
             :is-streaming="true"
           />
         </div>
+
+        <!-- 插话回应流式消息 -->
+        <div v-if="interjectionStreamingMessage" class="streaming-message">
+          <div class="round-divider">
+            <el-divider>
+              <el-tag size="small" type="warning">回应用户插话</el-tag>
+            </el-divider>
+          </div>
+          <AgentMessage
+            :message="interjectionStreamingMessage"
+            :is-streaming="true"
+          />
+        </div>
       </div>
+    </div>
+
+    <!-- 插话状态提示 -->
+    <div v-if="interjectionPending" class="interjection-banner">
+      <el-icon><Loading /></el-icon>
+      <span>插话已发送，专家正在回应...</span>
     </div>
 
     <!-- 底部输入区 -->
@@ -95,6 +114,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import AgentMessage from './AgentMessage.vue'
 import RoundIndicator from './RoundIndicator.vue'
 import DiscussionControl from './DiscussionControl.vue'
@@ -116,6 +136,11 @@ let ws: WebSocket | null = null
 // 流式输出相关
 const streamingMessage = ref<Message | null>(null)
 const streamingContent = ref('')
+
+// 插话回应相关
+const interjectionPending = ref(false)
+const interjectionStreamingMessage = ref<Message | null>(null)
+const interjectionStreamingContent = ref('')
 
 const allMessages = computed(() => {
   if (!discussion.value) return []
@@ -220,6 +245,42 @@ const connectWebSocket = () => {
         loadDiscussion()
         break
 
+      case 'interjection_stream_start':
+        interjectionStreamingMessage.value = {
+          id: Date.now(),
+          agentId: data.data.agentId,
+          agentName: data.data.agentName,
+          agentType: data.data.agentType,
+          agentAvatar: data.data.agentAvatar,
+          content: '',
+          messageType: 'INTERJECTION',
+          isFinal: false,
+          createdAt: new Date().toISOString()
+        }
+        interjectionStreamingContent.value = ''
+        scrollToBottom()
+        break
+
+      case 'interjection_stream_chunk':
+        if (interjectionStreamingMessage.value) {
+          interjectionStreamingContent.value += data.content
+          interjectionStreamingMessage.value.content = interjectionStreamingContent.value
+          scrollToBottom()
+        }
+        break
+
+      case 'interjection_stream_end':
+        interjectionStreamingMessage.value = null
+        interjectionStreamingContent.value = ''
+        loadDiscussion()
+        scrollToBottom()
+        break
+
+      case 'discussion_resumed':
+        interjectionPending.value = false
+        loadDiscussion()
+        break
+
       case 'message':
         // 完整消息（兼容旧版本）
         loadDiscussion()
@@ -311,8 +372,8 @@ const sendMessage = async () => {
   try {
     await discussionApi.sendMessage(props.taskId, userInput.value)
     userInput.value = ''
+    interjectionPending.value = true
     ElMessage.success('消息已发送')
-    // 刷新讨论以显示用户消息
     await loadDiscussion()
   } catch (error) {
     ElMessage.error('发送消息失败')
@@ -435,5 +496,17 @@ const getCurrentRoundType = (): RoundType => {
   justify-content: center;
   margin-top: 12px;
   gap: 12px;
+}
+
+.interjection-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 13px;
+  border-top: 1px solid #fcd34d;
 }
 </style>
