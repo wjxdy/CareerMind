@@ -54,6 +54,7 @@ export interface Message {
   agentType: AgentType
   content: string
   replyToMessageId?: number
+  messageType?: 'AGENT' | 'USER' | 'INTERJECTION'
   isFinal: boolean
   createdAt: string
 }

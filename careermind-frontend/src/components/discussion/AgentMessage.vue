@@ -1,5 +1,5 @@
 <template>
-  <div class="agent-message" :class="{ 'is-final': message.isFinal, 'is-streaming': isStreaming, 'is-user': isUserMessage }">
+  <div class="agent-message" :class="{ 'is-final': message.isFinal, 'is-streaming': isStreaming, 'is-user': isUserMessage, 'is-interjection': isInterjection }">
     <div class="message-avatar">
       <el-avatar
         :size="40"
@@ -13,7 +13,7 @@
     </div>
     <div class="message-content">
       <div class="message-header">
-        <span class="agent-name">{{ isUserMessage ? '我' : message.agentName }}</span>
+        <span class="agent-name">{{ displayName }}</span>
         <span v-if="isStreaming" class="streaming-indicator">
           <span class="typing-dot"></span>
           <span class="typing-dot"></span>
@@ -42,8 +42,18 @@ const props = defineProps<{
 const agentStore = useAgentStore()
 
 const isUserMessage = computed(() => props.message.agentType === 'USER' || props.message.agentId === -1)
+const isInterjection = computed(() => props.message.messageType === 'INTERJECTION')
 
-const agentColor = computed(() => agentStore.getAgentColor(props.message.agentType))
+const displayName = computed(() => {
+  if (isUserMessage.value) return '我'
+  if (isInterjection.value) return `${props.message.agentName} · 回应插话`
+  return props.message.agentName
+})
+
+const agentColor = computed(() => {
+  if (isInterjection.value) return '#10b981'
+  return agentStore.getAgentColor(props.message.agentType)
+})
 const agentIcon = computed(() => agentStore.getAgentIcon(props.message.agentType))
 
 const formattedContent = computed(() => {
@@ -80,6 +90,22 @@ const formatTime = (time: string) => {
 .agent-message.is-user {
   border-left: 4px solid #10b981;
   background: linear-gradient(90deg, #ecfdf5 0%, #ffffff 100%);
+}
+
+.agent-message.is-interjection {
+  border-left: 4px solid #f59e0b;
+  background: linear-gradient(90deg, #fffbeb 0%, #ffffff 100%);
+  padding: 12px 16px;
+}
+
+.is-interjection .agent-name {
+  color: #b45309;
+  font-size: 13px;
+}
+
+.is-interjection .message-body {
+  font-size: 13px;
+  color: #92400e;
 }
 
 .message-avatar {
