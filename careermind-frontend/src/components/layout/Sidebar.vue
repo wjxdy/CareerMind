@@ -82,6 +82,7 @@ import { computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useTaskStore } from '@/stores/task'
+import { UserFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()

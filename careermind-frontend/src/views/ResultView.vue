@@ -145,7 +145,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { marked } from 'marked'
 import Sidebar from '@/components/layout/Sidebar.vue'
@@ -153,7 +153,6 @@ import { mergeApi } from '@/api/merge'
 import type { MergeResult } from '@/types'
 
 const route = useRoute()
-const router = useRouter()
 const taskId = computed(() => Number(route.params.taskId))
 
 const loading = ref(false)
