@@ -140,6 +140,65 @@ public class DiscussionWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    public void sendInterjectionStreamStart(Long taskId, Long agentId, String agentName, String agentType, String agentAvatar) {
+        WebSocketSession session = taskSessions.get(taskId);
+        if (session != null && session.isOpen()) {
+            try {
+                ObjectNode message = objectMapper.createObjectNode();
+                message.put("type", "interjection_stream_start");
+                ObjectNode data = message.putObject("data");
+                data.put("agentId", agentId);
+                data.put("agentName", agentName);
+                data.put("agentType", agentType);
+                data.put("agentAvatar", agentAvatar);
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+            } catch (IOException e) {
+                log.error("发送插话流式开始事件失败", e);
+            }
+        }
+    }
+
+    public void sendInterjectionStreamChunk(Long taskId, String content) {
+        WebSocketSession session = taskSessions.get(taskId);
+        if (session != null && session.isOpen()) {
+            try {
+                ObjectNode message = objectMapper.createObjectNode();
+                message.put("type", "interjection_stream_chunk");
+                message.put("content", content);
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+            } catch (IOException e) {
+                log.error("发送插话流式片段失败", e);
+            }
+        }
+    }
+
+    public void sendInterjectionStreamEnd(Long taskId, Long messageId) {
+        WebSocketSession session = taskSessions.get(taskId);
+        if (session != null && session.isOpen()) {
+            try {
+                ObjectNode message = objectMapper.createObjectNode();
+                message.put("type", "interjection_stream_end");
+                message.put("messageId", messageId);
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+            } catch (IOException e) {
+                log.error("发送插话流式结束事件失败", e);
+            }
+        }
+    }
+
+    public void sendDiscussionResumed(Long taskId) {
+        WebSocketSession session = taskSessions.get(taskId);
+        if (session != null && session.isOpen()) {
+            try {
+                ObjectNode message = objectMapper.createObjectNode();
+                message.put("type", "discussion_resumed");
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+            } catch (IOException e) {
+                log.error("发送讨论恢复事件失败", e);
+            }
+        }
+    }
+
     /**
      * 发送结果流式开始事件
      */
