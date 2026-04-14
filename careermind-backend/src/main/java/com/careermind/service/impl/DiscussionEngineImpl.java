@@ -257,6 +257,22 @@ public class DiscussionEngineImpl implements DiscussionEngine {
         } catch (Exception e) {
             log.error("标记轮次完成失败: {}", e.getMessage(), e);
         }
+
+        // 本轮结束后清空用户插话标记
+        try {
+            transactionTemplate.execute(status -> {
+                Discussion discussion = discussionRepository.findById(discussionId).orElse(null);
+                if (discussion != null && Boolean.TRUE.equals(discussion.getHasUserInterjection())) {
+                    discussion.setHasUserInterjection(false);
+                    discussion.setInterjectionContent(null);
+                    discussionRepository.save(discussion);
+                    log.info("用户插话标记已清空: Discussion ID={}", discussionId);
+                }
+                return null;
+            });
+        } catch (Exception e) {
+            log.error("清空用户插话标记失败: {}", e.getMessage(), e);
+        }
     }
 
     private void processAgentMessageStream(Agent agent, Long discussionId, Long taskId, int currentRound, RoundType roundType, List<Agent> allAgents) {
@@ -322,109 +338,6 @@ public class DiscussionEngineImpl implements DiscussionEngine {
         });
     }
 
-    private String buildInterjectionPrompt(Agent agent, String userContent) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("=== 用户插话 ===\n");
-        prompt.append("用户在讨论过程中发表了以下观点或提问：\n");
-        prompt.append("\"").append(userContent).append("\"\n\n");
-        prompt.append("=== 你的任务 ===\n");
-        prompt.append("你是").append(agent.getName()).append("。请基于你的角色定位，用 1-2 句话简要回应用户的插话。\n");
-        prompt.append("要求：\n");
-        prompt.append("1. 直接称呼\"用户\"或\"你\"；\n");
-        prompt.append("2. 观点明确，不展开长篇论述；\n");
-        prompt.append("3. 如果用户的插话与你之前的观点冲突，简要说明你的立场。\n");
-        return prompt.toString();
-    }
-
-    private void processInterjectionMessageStream(Agent agent, Long discussionId, Long taskId, int currentRound, Round round, String userContent) {
-        Discussion discussion = discussionRepository.findById(discussionId).orElse(null);
-        if (discussion == null || !Boolean.TRUE.equals(discussion.getIsPaused())) {
-            return;
-        }
-
-        String prompt = buildInterjectionPrompt(agent, userContent);
-        StringBuilder contentBuilder = new StringBuilder();
-
-        webSocketHandler.sendInterjectionStreamStart(taskId, agent.getId(), agent.getName(), agent.getType().name(), agent.getAvatarUrl());
-
-        llmGateway.generateAgentResponseStream(agent, prompt, chunk -> {
-            contentBuilder.append(chunk);
-            webSocketHandler.sendInterjectionStreamChunk(taskId, chunk);
-        }, () -> {
-            String fullContent = contentBuilder.toString();
-            Message message = Message.builder()
-                    .round(round)
-                    .agent(agent)
-                    .content(fullContent)
-                    .messageType(MessageType.INTERJECTION)
-                    .isFinal(false)
-                    .build();
-            Message savedMessage = messageRepository.save(message);
-            webSocketHandler.sendInterjectionStreamEnd(taskId, savedMessage.getId());
-        });
-    }
-
-    private void handleUserInterjection(Discussion discussion, String userContent) {
-        Long taskId = discussion.getTask().getId();
-        Task task = taskRepository.findById(taskId).orElse(null);
-        if (task == null) {
-            log.error("Task不存在，无法处理插话");
-            return;
-        }
-
-        List<Agent> agents = new ArrayList<>(task.getAgents());
-        if (agents.isEmpty()) {
-            log.warn("没有Agent参与，跳过插话回应");
-            autoResumeDiscussion(taskId, discussion.getId());
-            return;
-        }
-
-        int currentRound = discussion.getCurrentRound();
-        Round round = roundRepository.findByDiscussionIdAndRoundNumber(discussion.getId(), currentRound).orElse(null);
-        if (round == null) {
-            log.error("当前轮次不存在，无法处理插话");
-            autoResumeDiscussion(taskId, discussion.getId());
-            return;
-        }
-
-        final Round finalRound = round;
-        CompletableFuture.runAsync(() -> {
-            for (int i = 0; i < agents.size(); i++) {
-                Agent agent = agents.get(i);
-                Discussion currentDiscussion = discussionRepository.findById(discussion.getId()).orElse(null);
-                if (currentDiscussion == null || !Boolean.TRUE.equals(currentDiscussion.getIsPaused())) {
-                    break;
-                }
-                processInterjectionMessageStream(agent, discussion.getId(), taskId, currentRound, finalRound, userContent);
-                if (i < agents.size() - 1) {
-                    try {
-                        Thread.sleep(1500);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                }
-            }
-            autoResumeDiscussion(taskId, discussion.getId());
-        }).exceptionally(e -> {
-            log.error("插话回应执行失败", e);
-            autoResumeDiscussion(taskId, discussion.getId());
-            return null;
-        });
-    }
-
-    private void autoResumeDiscussion(Long taskId, Long discussionId) {
-        transactionTemplate.execute(status -> {
-            Discussion d = discussionRepository.findById(discussionId).orElse(null);
-            if (d != null) {
-                d.setIsPaused(false);
-                discussionRepository.save(d);
-            }
-            return null;
-        });
-        webSocketHandler.sendDiscussionResumed(taskId);
-        log.info("讨论已自动恢复: Task ID={}", taskId);
-    }
 
     private String buildPrompt(Agent agent, Task task, Round round, List<Agent> allAgents, int currentRound, Long discussionId) {
         StringBuilder prompt = new StringBuilder();
@@ -432,13 +345,6 @@ public class DiscussionEngineImpl implements DiscussionEngine {
         Discussion discussion = discussionRepository.findById(discussionId).orElse(null);
         boolean hasInterjection = discussion != null && Boolean.TRUE.equals(discussion.getHasUserInterjection());
         String interjectionContent = hasInterjection ? discussion.getInterjectionContent() : null;
-
-        boolean agentHasInterjected = false;
-        if (hasInterjection && interjectionContent != null) {
-            List<Message> interjectionMessages = messageRepository.findByRoundIdAndAgentIdAndMessageType(
-                    round.getId(), agent.getId(), MessageType.INTERJECTION);
-            agentHasInterjected = !interjectionMessages.isEmpty();
-        }
 
         // 基础信息
         prompt.append("你是").append(agent.getName()).append("。\n\n");
@@ -450,7 +356,7 @@ public class DiscussionEngineImpl implements DiscussionEngine {
         }
         prompt.append("\n");
 
-        if (hasInterjection && !agentHasInterjected && interjectionContent != null) {
+        if (hasInterjection && interjectionContent != null) {
             prompt.append("=== 用户插话 ===\n");
             prompt.append("用户在讨论中补充了以下内容，请在发言中适当参考：\n");
             prompt.append(interjectionContent).append("\n\n");
@@ -621,7 +527,6 @@ public class DiscussionEngineImpl implements DiscussionEngine {
 
             discussion.setHasUserInterjection(true);
             discussion.setInterjectionContent(content);
-            discussion.setIsPaused(true);
             discussionRepository.save(discussion);
 
             webSocketHandler.sendMessageToTask(taskId, MessageDto.builder()
@@ -636,14 +541,11 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                     .createdAt(userMessage.getCreatedAt())
                     .build());
 
-            log.info("用户消息已添加到讨论并触发暂停: Task ID={}, Round={}, Content={}",
+            log.info("用户消息已添加到讨论: Task ID={}, Round={}, Content={}",
                     taskId, round.getRoundNumber(), content.substring(0, Math.min(50, content.length())));
 
             return convertToDto(discussion);
         });
-
-        Discussion discussion = discussionRepository.findById(dto.getId()).orElseThrow();
-        handleUserInterjection(discussion, content);
 
         return dto;
     }

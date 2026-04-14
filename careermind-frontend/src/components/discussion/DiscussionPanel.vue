@@ -372,7 +372,6 @@ const sendMessage = async () => {
   try {
     await discussionApi.sendMessage(props.taskId, userInput.value)
     userInput.value = ''
-    interjectionPending.value = true
     ElMessage.success('消息已发送')
     await loadDiscussion()
   } catch (error) {
