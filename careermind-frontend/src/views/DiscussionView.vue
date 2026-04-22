@@ -1,31 +1,13 @@
 <template>
-  <div class="page-layout">
-    <Sidebar />
-    <main class="page-content">
-      <DiscussionPanel :task-id="Number(taskId)" />
-    </main>
-  </div>
+  <PageShell>
+    <DiscussionPanel :task-id="Number(taskId)" />
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import Sidebar from '@/components/layout/Sidebar.vue'
+import PageShell from '@/components/ui/PageShell.vue'
 import DiscussionPanel from '@/components/discussion/DiscussionPanel.vue'
-
-const route = useRoute()
-const taskId = computed(() => route.params.taskId as string)
+const taskId = computed(() => useRoute().params.taskId as string)
 </script>
-
-<style scoped>
-.page-layout {
-  display: flex;
-  height: 100vh;
-}
-
-.page-content {
-  flex: 1;
-  overflow: hidden;
-  background: white;
-}
-</style>
