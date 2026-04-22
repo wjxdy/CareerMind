@@ -1,0 +1,73 @@
+:root {
+  --bg-page:         #FAFAFA;
+  --bg-card:         #FFFFFF;
+  --bg-elevated:     #F4F4F5;
+  --bg-inset:        #F9FAFB;
+
+  --border-subtle:   #E4E4E7;
+  --border-emphasis: #D4D4D8;
+  --border-strong:   #A1A1AA;
+
+  --text-primary:    #09090B;
+  --text-secondary:  #52525B;
+  --text-muted:      #A1A1AA;
+  --text-inverse:    #FAFAFA;
+
+  --accent:          #3B82F6;
+  --accent-hover:    #2563EB;
+  --accent-dim:      #EFF6FF;
+  --accent-contrast: #FFFFFF;
+
+  --success:         #10B981;
+  --warning:         #F59E0B;
+  --danger:          #EF4444;
+
+  --shadow-sm:       0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-md:       0 4px 12px rgb(0 0 0 / 0.06);
+  --shadow-lg:       0 10px 32px rgb(0 0 0 / 0.10);
+
+  --radius-sm:       6px;
+  --radius-md:       10px;
+  --radius-lg:       16px;
+  --radius-full:     9999px;
+
+  --font-sans:       "Inter", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-mono:       "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --font-serif-zh:   "Noto Serif SC", serif;
+
+  --duration-fast:   120ms;
+  --duration-base:   240ms;
+  --duration-slow:   480ms;
+  --ease-standard:   cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+}
+
+html[data-theme="dark"] {
+  --bg-page:         #09090B;
+  --bg-card:         #18181B;
+  --bg-elevated:     #27272A;
+  --bg-inset:        #111113;
+  --border-subtle:   #27272A;
+  --border-emphasis: #3F3F46;
+  --border-strong:   #52525B;
+  --text-primary:    #FAFAFA;
+  --text-secondary:  #D4D4D8;
+  --text-muted:      #71717A;
+  --accent:          #60A5FA;
+  --accent-hover:    #3B82F6;
+  --accent-dim:      rgba(30,58,138,0.2);
+}
+
+[data-agent-type="INDUSTRY_ANALYST"]  { --agent: #1E3A8A; --agent-dim: rgba(30,58,138,0.10); }
+[data-agent-type="SKILL_ASSESSOR"]    { --agent: #0D9488; --agent-dim: rgba(13,148,136,0.10); }
+[data-agent-type="RISK_WATCHER"]      { --agent: #B45309; --agent-dim: rgba(180,83,9,0.10); }
+[data-agent-type="OPPORTUNITY_HUNTER"]{ --agent: #CA8A04; --agent-dim: rgba(202,138,4,0.10); }
+[data-agent-type="VALUE_EXAMINER"]    { --agent: #9333EA; --agent-dim: rgba(147,51,234,0.10); }
+[data-agent-type="CUSTOM"]            { --agent: #525B6B; --agent-dim: rgba(82,91,107,0.10); }
+[data-agent-type="MERGE_AGENT"]       { --agent: #111827; --agent-dim: rgba(17,24,39,0.10); }
+
+html[data-theme="dark"] [data-agent-type="INDUSTRY_ANALYST"]   { --agent: #60A5FA; }
+html[data-theme="dark"] [data-agent-type="SKILL_ASSESSOR"]     { --agent: #2DD4BF; }
+html[data-theme="dark"] [data-agent-type="RISK_WATCHER"]       { --agent: #FB923C; }
+html[data-theme="dark"] [data-agent-type="OPPORTUNITY_HUNTER"] { --agent: #FCD34D; }
+html[data-theme="dark"] [data-agent-type="VALUE_EXAMINER"]     { --agent: #C084FC; }
