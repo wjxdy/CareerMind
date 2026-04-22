@@ -1,88 +1,37 @@
 <template>
-  <div class="login-container">
-    <div class="login-box">
-      <div class="logo">
-        <el-icon :size="48" color="#0ea5e9"><ChatDotRound /></el-icon>
-        <h1>CareerMind</h1>
-        <p>多Agent职业发展决策系统</p>
+  <div class="login-layout">
+    <aside class="left-pane">
+      <BrandLogo size="lg" />
+      <div class="left-art">
+        <div class="orb c-center" data-agent-type="MERGE_AGENT" />
+        <div class="orb p-1" data-agent-type="INDUSTRY_ANALYST" />
+        <div class="orb p-2" data-agent-type="SKILL_ASSESSOR" />
+        <div class="orb p-3" data-agent-type="RISK_WATCHER" />
+        <div class="orb p-4" data-agent-type="OPPORTUNITY_HUNTER" />
+        <div class="orb p-5" data-agent-type="VALUE_EXAMINER" />
       </div>
+      <p class="tagline">让五位 AI 专家为你辩一场</p>
+    </aside>
 
-      <el-tabs v-model="activeTab" class="login-tabs">
-        <el-tab-pane label="登录" name="login">
-          <el-form :model="loginForm" :rules="rules" ref="loginFormRef" @submit.prevent="handleLogin">
-            <el-form-item prop="email">
-              <el-input
-                v-model="loginForm.email"
-                placeholder="邮箱"
-                prefix-icon="Message"
-                size="large"
-              />
-            </el-form-item>
-            <el-form-item prop="password">
-              <el-input
-                v-model="loginForm.password"
-                type="password"
-                placeholder="密码"
-                prefix-icon="Lock"
-                size="large"
-                show-password
-                @keyup.enter="handleLogin"
-              />
-            </el-form-item>
-            <el-button
-              type="primary"
-              size="large"
-              class="submit-btn"
-              :loading="userStore.loading"
-              @click="handleLogin"
-            >
-              登录
-            </el-button>
-          </el-form>
-        </el-tab-pane>
+    <section class="right-pane">
+      <div class="form-box">
+        <h2>{{ isRegister ? '创建账户' : '欢迎回来' }}</h2>
+        <p class="muted">{{ isRegister ? '30 秒开启一次 AI 辩论' : '继续你的决策讨论' }}</p>
 
-        <el-tab-pane label="注册" name="register">
-          <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef">
-            <el-form-item prop="username">
-              <el-input
-                v-model="registerForm.username"
-                placeholder="用户名"
-                prefix-icon="User"
-                size="large"
-              />
-            </el-form-item>
-            <el-form-item prop="email">
-              <el-input
-                v-model="registerForm.email"
-                placeholder="邮箱"
-                prefix-icon="Message"
-                size="large"
-              />
-            </el-form-item>
-            <el-form-item prop="password">
-              <el-input
-                v-model="registerForm.password"
-                type="password"
-                placeholder="密码"
-                prefix-icon="Lock"
-                size="large"
-                show-password
-                @keyup.enter="handleRegister"
-              />
-            </el-form-item>
-            <el-button
-              type="primary"
-              size="large"
-              class="submit-btn"
-              :loading="userStore.loading"
-              @click="handleRegister"
-            >
-              注册
-            </el-button>
-          </el-form>
-        </el-tab-pane>
-      </el-tabs>
-    </div>
+        <BaseInput v-if="isRegister" v-model="registerForm.username" label="用户名" placeholder="3-20 位" />
+        <BaseInput v-model="form.email" type="email" label="邮箱" placeholder="email@example.com" />
+        <BaseInput v-model="form.password" type="password" label="密码" placeholder="至少 6 位" @keyup="onKey" />
+
+        <BaseButton variant="primary" size="lg" block :loading="userStore.loading" @click="submit">
+          {{ isRegister ? '注册' : '登录' }}
+        </BaseButton>
+
+        <p class="switch">
+          {{ isRegister ? '已有账户？' : '第一次来？' }}
+          <a href="#" @click.prevent="isRegister = !isRegister">{{ isRegister ? '去登录' : '去注册' }}</a>
+        </p>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -90,174 +39,67 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import BrandLogo from '@/components/ui/BrandLogo.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-// 获取登录后要跳转的页面
-const redirectPath = computed(() => {
-  const redirect = route.query.redirect as string
-  return redirect || '/'
-})
+const isRegister = ref(false)
+const form = reactive({ email: '', password: '' })
+const registerForm = reactive({ username: '' })
 
-const activeTab = ref('login')
-const loginFormRef = ref<FormInstance>()
-const registerFormRef = ref<FormInstance>()
+const redirectPath = computed(() => (route.query.redirect as string) || '/')
 
-const loginForm = reactive({
-  email: '',
-  password: '',
-})
-
-const registerForm = reactive({
-  username: '',
-  email: '',
-  password: '',
-})
-
-const rules: FormRules = {
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码至少6位', trigger: 'blur' },
-  ],
-}
-
-const registerRules: FormRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度3-20位', trigger: 'blur' },
-  ],
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码至少6位', trigger: 'blur' },
-  ],
-}
-
-const handleLogin = async () => {
-  console.log('点击登录按钮')
-  if (!loginFormRef.value) {
-    console.error('loginFormRef 为空')
-    return
+const validate = () => {
+  if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { ElMessage.error('邮箱格式不正确'); return false }
+  if (!form.password || form.password.length < 6) { ElMessage.error('密码至少 6 位'); return false }
+  if (isRegister.value && (!registerForm.username || registerForm.username.length < 3)) {
+    ElMessage.error('用户名至少 3 位'); return false
   }
+  return true
+}
 
-  console.log('表单数据:', loginForm)
-
-  try {
-    const valid = await loginFormRef.value.validate()
-    console.log('表单验证结果:', valid)
-
-    if (valid) {
-      console.log('开始登录...')
-      const success = await userStore.login(loginForm.email, loginForm.password)
-      console.log('登录结果:', success)
-      console.log('登录后状态:', {
-        isLoggedIn: userStore.isLoggedIn,
-        hasToken: !!userStore.token,
-        hasUser: !!userStore.user,
-        token: userStore.token?.slice(0, 20),
-        user: userStore.user
-      })
-      if (success) {
-        ElMessage.success('登录成功')
-        // 延迟跳转，确保状态更新
-        setTimeout(async () => {
-          console.log('准备跳转到:', redirectPath.value)
-          await router.push(redirectPath.value)
-        }, 100)
-      } else {
-        ElMessage.error('登录失败，请检查邮箱和密码')
-      }
-    }
-  } catch (error: any) {
-    console.error('表单验证失败或登录出错:', error)
-    if (error?.message) {
-      ElMessage.error(error.message)
-    }
+const submit = async () => {
+  if (!validate()) return
+  if (isRegister.value) {
+    const ok = await userStore.register(registerForm.username, form.email, form.password)
+    if (ok) { ElMessage.success('注册成功'); router.push('/') }
+  } else {
+    const ok = await userStore.login(form.email, form.password)
+    if (ok) { ElMessage.success('登录成功'); setTimeout(() => router.push(redirectPath.value), 100) }
+    else ElMessage.error('登录失败，请检查邮箱和密码')
   }
 }
 
-const handleRegister = async () => {
-  if (!registerFormRef.value) return
-
-  await registerFormRef.value.validate(async (valid) => {
-    if (valid) {
-      const success = await userStore.register(
-        registerForm.username,
-        registerForm.email,
-        registerForm.password
-      )
-      if (success) {
-        ElMessage.success('注册成功')
-        router.push('/')
-      }
-    }
-  })
-}
-
+const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Enter') submit() }
 </script>
 
 <style scoped>
-.login-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.login-layout { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+.left-pane {
+  position: relative; padding: 48px; display: flex; flex-direction: column; justify-content: space-between;
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-card) 100%);
+  border-right: 1px solid var(--border-subtle); overflow: hidden;
 }
+.left-art { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.orb { position: absolute; width: 72px; height: 72px; border-radius: 50%; background: var(--agent-dim); border: 2px solid var(--agent); }
+.c-center { width: 40px; height: 40px; }
+.p-1 { top: 22%; left: 50%; transform: translate(-50%,0); }
+.p-2 { top: 38%; right: 18%; }
+.p-3 { bottom: 22%; right: 28%; }
+.p-4 { bottom: 22%; left: 28%; }
+.p-5 { top: 38%; left: 18%; }
+.tagline { font-size: 15px; color: var(--text-secondary); margin: 0; z-index: 2; }
 
-.login-box {
-  width: 420px;
-  padding: 40px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-.logo {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.logo h1 {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1f2937;
-  margin-top: 12px;
-  margin-bottom: 4px;
-}
-
-.logo p {
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.login-tabs :deep(.el-tabs__header) {
-  margin-bottom: 24px;
-}
-
-.login-tabs :deep(.el-tabs__nav) {
-  width: 100%;
-}
-
-.login-tabs :deep(.el-tabs__item) {
-  width: 50%;
-  text-align: center;
-  font-size: 16px;
-}
-
-.submit-btn {
-  width: 100%;
-  margin-top: 8px;
-}
+.right-pane { display: flex; align-items: center; justify-content: center; padding: 48px; background: var(--bg-page); }
+.form-box { width: 360px; display: flex; flex-direction: column; gap: 16px; }
+.form-box h2 { font-size: 28px; margin: 0; }
+.form-box .muted { margin: 0 0 8px; color: var(--text-secondary); font-size: 14px; }
+.switch { margin: 0; text-align: center; font-size: 13px; color: var(--text-muted); }
+.switch a { color: var(--accent); font-weight: 500; }
+@media (max-width: 768px) { .login-layout { grid-template-columns: 1fr; } .left-pane { display: none; } }
 </style>
