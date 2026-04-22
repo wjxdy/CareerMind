@@ -1,205 +1,83 @@
 <template>
-  <div class="page-layout">
-    <Sidebar />
-    <main class="page-content">
-      <div class="task-detail" v-if="task">
-        <div class="detail-header">
-          <el-button @click="$router.back()" text>
-            <el-icon><ArrowLeft /></el-icon>
-            返回
-          </el-button>
-          <el-tag :type="getStatusType(task.status)">
-            {{ getStatusLabel(task.status) }}
-          </el-tag>
+  <PageShell>
+    <div class="task-view" v-if="task">
+      <header class="tv-head">
+        <div>
+          <BaseBadge :tone="toneOfStatus(task.status)">{{ labelOfStatus(task.status) }}</BaseBadge>
+          <h2>{{ task.title }}</h2>
         </div>
-
-        <h2>{{ task.title }}</h2>
-
-        <div class="detail-section" v-if="task.background">
-          <h4>背景信息</h4>
-          <p>{{ task.background }}</p>
+        <div class="tv-actions">
+          <BaseButton variant="secondary" @click="$router.push(`/discussions/${task.id}`)">进入讨论</BaseButton>
+          <BaseButton variant="primary"   @click="$router.push(`/results/${task.id}`)">查看结果</BaseButton>
         </div>
+      </header>
 
-        <div class="detail-section" v-if="task.goal">
-          <h4>目标/困惑</h4>
-          <p>{{ task.goal }}</p>
+      <BaseCard class="tv-card">
+        <template #header>任务信息</template>
+        <div class="info-row"><span class="ik">背景</span><p>{{ task.background || '—' }}</p></div>
+        <div class="info-row"><span class="ik">目标</span><p>{{ task.goal || '—' }}</p></div>
+        <div class="info-row"><span class="ik">约束</span><p>{{ task.constraints || '—' }}</p></div>
+        <div class="info-row"><span class="ik">专家</span>
+          <AgentAvatarGroup :agents="task.agents.map(a => ({ id: a.id, type: a.type }))" :size="30" :max="5" />
         </div>
+      </BaseCard>
 
-        <div class="detail-section" v-if="task.constraints">
-          <h4>约束条件</h4>
-          <p>{{ task.constraints }}</p>
-        </div>
-
-        <div class="detail-section">
-          <h4>参与专家</h4>
-          <div class="agent-tags">
-            <el-tag
-              v-for="agent in task.agents"
-              :key="agent.id"
-              :style="{ backgroundColor: getAgentColor(agent.type), color: 'white' }"
-              class="agent-tag"
-            >
-              {{ agent.name }}
-            </el-tag>
-          </div>
-        </div>
-
-        <div class="detail-section">
-          <DecisionTree
-            :task="task"
-            :discussion="discussion"
-            :merge-result="mergeResult"
-          />
-        </div>
-
-        <div class="detail-actions">
-          <el-button type="primary" @click="goToDiscussion">
-            <el-icon><ChatLineRound /></el-icon>
-            查看讨论
-          </el-button>
-          <el-button type="success" @click="goToResult">
-            <el-icon><DocumentChecked /></el-icon>
-            查看结果
-          </el-button>
-        </div>
-      </div>
-    </main>
-  </div>
+      <BaseCard class="tv-card">
+        <template #header>决策链路</template>
+        <DecisionTree :task="task" :discussion="discussion" :merge-result="mergeResult" />
+      </BaseCard>
+    </div>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import Sidebar from '@/components/layout/Sidebar.vue'
+import { useRoute } from 'vue-router'
+import PageShell from '@/components/ui/PageShell.vue'
+import BaseCard from '@/components/ui/BaseCard.vue'
+import BaseBadge from '@/components/ui/BaseBadge.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import AgentAvatarGroup from '@/components/agent/AgentAvatarGroup.vue'
+import DecisionTree from '@/components/task/DecisionTree.vue'
 import { taskApi } from '@/api/task'
 import { discussionApi } from '@/api/discussion'
 import { mergeApi } from '@/api/merge'
-import { useAgentStore } from '@/stores/agent'
-import DecisionTree from '@/components/task/DecisionTree.vue'
-import type { Task, TaskStatus, Discussion, MergeResult } from '@/types'
+import type { Task, Discussion, MergeResult, TaskStatus } from '@/types'
 
 const route = useRoute()
-const router = useRouter()
-const agentStore = useAgentStore()
 const taskId = computed(() => Number(route.params.id))
-
 const task = ref<Task | null>(null)
 const discussion = ref<Discussion | null>(null)
 const mergeResult = ref<MergeResult | null>(null)
 
-onMounted(async () => {
-  await loadTask()
-})
-
-watch(taskId, async (newTaskId, oldTaskId) => {
-  if (newTaskId !== oldTaskId) {
-    await loadTask()
-  }
-})
-
-const loadTask = async () => {
+const load = async () => {
   task.value = await taskApi.getTaskById(taskId.value)
   const [disc, merge] = await Promise.allSettled([
     discussionApi.getDiscussion(taskId.value),
-    mergeApi.getMergeResult(taskId.value).catch(() => null)
+    mergeApi.getMergeResult(taskId.value),
   ])
   discussion.value = disc.status === 'fulfilled' ? (disc.value as Discussion) : null
   mergeResult.value = merge.status === 'fulfilled' ? (merge.value as MergeResult | null) : null
 }
+onMounted(load)
+watch(taskId, load)
 
-const getAgentColor = (type: string) => agentStore.getAgentColor(type)
-
-const getStatusType = (status: TaskStatus) => {
-  const types: Record<string, string> = {
-    PENDING: 'info',
-    DISCUSSING: 'primary',
-    MERGING: 'warning',
-    COMPLETED: 'success',
-    ARCHIVED: 'info'
-  }
-  return types[status] || 'info'
-}
-
-const getStatusLabel = (status: TaskStatus) => {
-  const labels: Record<string, string> = {
-    PENDING: '待开始',
-    DISCUSSING: '讨论中',
-    MERGING: '整合中',
-    COMPLETED: '已完成',
-    ARCHIVED: '已归档'
-  }
-  return labels[status] || status
-}
-
-const goToDiscussion = () => router.push(`/discussions/${taskId.value}`)
-const goToResult = () => router.push(`/results/${taskId.value}`)
+const toneOfStatus = (s: TaskStatus) => ({
+  PENDING: 'neutral', DISCUSSING: 'accent', MERGING: 'warning', COMPLETED: 'success', ARCHIVED: 'neutral',
+}[s] as 'neutral'|'accent'|'warning'|'success')
+const labelOfStatus = (s: TaskStatus) => ({
+  PENDING: '待开始', DISCUSSING: '讨论中', MERGING: '整合中', COMPLETED: '已完成', ARCHIVED: '已归档',
+}[s] || s)
 </script>
 
 <style scoped>
-.page-layout {
-  display: flex;
-  height: 100vh;
-}
-
-.page-content {
-  flex: 1;
-  padding: 24px 32px;
-  overflow-y: auto;
-  background: white;
-}
-
-.task-detail {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.task-detail h2 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 24px;
-}
-
-.detail-section {
-  margin-bottom: 24px;
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-}
-
-.detail-section h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-  margin-bottom: 8px;
-}
-
-.detail-section p {
-  font-size: 14px;
-  color: #374151;
-  line-height: 1.6;
-}
-
-.agent-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.agent-tag {
-  border: none;
-}
-
-.detail-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 32px;
-}
+.task-view { padding: 32px 40px; max-width: 1100px; margin: 0 auto; overflow-y: auto; height: 100%; }
+.tv-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 20px; }
+.tv-head h2 { margin: 6px 0 0; font-size: 22px; }
+.tv-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.tv-card { margin-bottom: 16px; }
+.info-row { display: grid; grid-template-columns: 60px 1fr; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-subtle); align-items: center; }
+.info-row:first-child { border-top: none; }
+.ik { color: var(--text-muted); font-size: 13px; }
+.info-row p { margin: 0; font-size: 13px; line-height: 1.6; }
 </style>

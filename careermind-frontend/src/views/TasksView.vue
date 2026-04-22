@@ -1,169 +1,123 @@
 <template>
-  <div class="page-layout">
-    <Sidebar />
-    <main class="page-content">
-      <div class="page-header">
-        <h2>我的咨询</h2>
-        <el-button type="primary" @click="showCreateDialog = true">
-          <el-icon><Plus /></el-icon>
-          新建咨询
-        </el-button>
-      </div>
+  <PageShell>
+    <div class="tasks-page">
+      <header class="page-head">
+        <div>
+          <h2>我的咨询</h2>
+          <p class="muted">发起一次新的决策辩论，或继续已有讨论</p>
+        </div>
+        <BaseButton variant="primary" size="md" @click="openCreate">+ 新建咨询</BaseButton>
+      </header>
 
-      <div class="task-grid" v-loading="taskStore.loading">
-        <el-card
-          v-for="task in taskStore.tasks"
-          :key="task.id"
-          class="task-card"
-          shadow="hover"
-          @click="goToTask(task.id)"
-        >
-          <div class="card-header">
-            <el-tag :type="getStatusType(task.status)" size="small">
-              {{ getStatusLabel(task.status) }}
-            </el-tag>
-            <el-icon class="delete-icon" @click.stop="handleDelete(task.id)"><Delete /></el-icon>
-          </div>
-          <h3 class="task-title">{{ task.title }}</h3>
-          <p class="task-goal" v-if="task.goal">{{ task.goal.slice(0, 100) }}...</p>
-          <div class="card-footer">
-            <span class="task-date">{{ formatDate(task.createdAt) }}</span>
-            <div class="agent-avatars" v-if="task.agents?.length">
-              <el-avatar
-                v-for="agent in task.agents.slice(0, 3)"
-                :key="agent.id"
-                :size="24"
-                :style="{ backgroundColor: agentStore.getAgentColor(agent.type) }"
-              >
-                {{ agent.name.charAt(0) }}
-              </el-avatar>
-              <span v-if="task.agents.length > 3" class="more-agents">+{{ task.agents.length - 3 }}</span>
+      <section class="my-tasks" v-loading="taskStore.loading">
+        <div class="filter-tabs">
+          <button v-for="f in filters" :key="f.val" class="tab" :class="{ on: statusFilter === f.val }" @click="statusFilter = f.val">
+            {{ f.label }}
+          </button>
+        </div>
+
+        <div v-if="filtered.length === 0" class="empty-box">
+          <EmptyState title="还没有咨询" description="点击右上角「新建咨询」开始" />
+        </div>
+        <div v-else class="tasks-grid">
+          <BaseCard v-for="t in filtered" :key="t.id" hoverable>
+            <div class="card-body" @click="goToTask(t.id)">
+              <div class="card-head">
+                <BaseBadge :tone="toneOfStatus(t.status)">{{ labelOfStatus(t.status) }}</BaseBadge>
+                <span class="date">{{ formatDate(t.createdAt) }}</span>
+              </div>
+              <h4 class="t-title">{{ t.title }}</h4>
+              <p class="t-goal">{{ (t.goal || '').slice(0, 100) }}</p>
+              <div class="t-meta">
+                <AgentAvatarGroup v-if="t.agents?.length" :agents="t.agents.map(a => ({ id: a.id, type: a.type }))" :size="30" :max="5" />
+                <button class="del-btn" @click.stop="handleDelete(t.id)" title="删除">×</button>
+              </div>
             </div>
-          </div>
-        </el-card>
-      </div>
+          </BaseCard>
+        </div>
+      </section>
+    </div>
 
-      <el-empty v-if="taskStore.tasks.length === 0" description="暂无咨询任务" />
-    </main>
-
-    <!-- 创建任务对话框 -->
-    <el-dialog
-      v-model="showCreateDialog"
-      title="新建职业咨询"
-      width="600px"
-    >
+    <el-dialog v-model="showCreateDialog" title="新建职业咨询" width="600px">
       <el-form :model="createForm" :rules="rules" ref="formRef" label-position="top">
         <el-form-item label="咨询主题" prop="title">
           <el-input v-model="createForm.title" placeholder="给你的咨询起个标题" />
         </el-form-item>
-
         <el-form-item label="背景信息" prop="background">
-          <el-input
-            v-model="createForm.background"
-            type="textarea"
-            :rows="3"
-            placeholder="描述你的教育背景、工作经历等（已自动填充个人简介）"
-          />
-          <div class="form-tip" v-if="createForm.background">
-            <el-icon><InfoFilled /></el-icon> 已自动填充个人简介，你可以根据需要修改
-          </div>
+          <el-input v-model="createForm.background" type="textarea" :rows="3" placeholder="教育背景、工作经历等" />
         </el-form-item>
-
-        <el-form-item label="目标/困惑" prop="goal">
-          <el-input
-            v-model="createForm.goal"
-            type="textarea"
-            :rows="4"
-            placeholder="详细描述你面临的职业选择或困惑"
-          />
+        <el-form-item label="目标 / 困惑" prop="goal">
+          <el-input v-model="createForm.goal" type="textarea" :rows="4" placeholder="详细描述你面临的职业选择或困惑" />
         </el-form-item>
-
         <el-form-item label="约束条件" prop="constraints">
-          <el-input
-            v-model="createForm.constraints"
-            type="textarea"
-            :rows="2"
-            placeholder="时间、资金、家庭等约束条件（可选）"
-          />
+          <el-input v-model="createForm.constraints" type="textarea" :rows="2" placeholder="时间、资金、家庭等（可选）" />
         </el-form-item>
-
         <el-form-item label="选择专家" prop="agentIds">
           <div class="agent-selection">
-            <div
-              v-for="agent in agentStore.availableAgents"
-              :key="agent.id"
-              class="agent-option"
-              :class="{ selected: createForm.agentIds.includes(agent.id) }"
-              @click="toggleAgent(agent.id)"
-            >
-              <el-avatar
-                :size="40"
-                :style="{ backgroundColor: agentStore.getAgentColor(agent.type) }"
-              >
-                <el-icon :size="20">
-                  <component :is="agentStore.getAgentIcon(agent.type)" />
-                </el-icon>
-              </el-avatar>
+            <label v-for="agent in agentStore.availableAgents" :key="agent.id"
+                   class="agent-option" :class="{ selected: createForm.agentIds.includes(agent.id) }"
+                   :data-agent-type="agent.type" @click="toggleAgent(agent.id)">
+              <AgentAvatar :agent-type="agent.type" :size="30" />
               <div class="agent-info">
                 <span class="agent-name">{{ agent.name }}</span>
                 <span class="agent-desc">{{ agent.description }}</span>
               </div>
-              <el-icon v-if="createForm.agentIds.includes(agent.id)" class="check-icon"><Check /></el-icon>
-            </div>
+              <span v-if="createForm.agentIds.includes(agent.id)" class="check">✓</span>
+            </label>
           </div>
         </el-form-item>
-
         <el-form-item label="关联知识库（可选）" prop="kbId">
-          <el-select
-            v-model="createForm.kbId"
-            placeholder="选择知识库为讨论提供背景资料"
-            clearable
-            style="width: 100%"
-          >
-            <el-option
-              v-for="kb in kbList"
-              :key="kb.id"
-              :label="kb.name"
-              :value="kb.id"
-            />
+          <el-select v-model="createForm.kbId" placeholder="选择知识库为讨论提供背景资料" clearable style="width: 100%">
+            <el-option v-for="kb in kbList" :key="kb.id" :label="kb.name" :value="kb.id" />
           </el-select>
-          <div class="form-tip">
-            <el-icon><InfoFilled /></el-icon> 选择知识库后，Agent会参考库中资料进行讨论
-          </div>
         </el-form-item>
       </el-form>
-
       <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleCreate" :loading="creating">
-          创建咨询
-        </el-button>
+        <BaseButton variant="ghost" @click="showCreateDialog = false">取消</BaseButton>
+        <BaseButton variant="primary" :loading="creating" @click="handleCreate">创建咨询</BaseButton>
       </template>
     </el-dialog>
-  </div>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import Sidebar from '@/components/layout/Sidebar.vue'
+import PageShell from '@/components/ui/PageShell.vue'
+import BaseCard from '@/components/ui/BaseCard.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseBadge from '@/components/ui/BaseBadge.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import AgentAvatar from '@/components/agent/AgentAvatar.vue'
+import AgentAvatarGroup from '@/components/agent/AgentAvatarGroup.vue'
 import { useTaskStore } from '@/stores/task'
 import { useAgentStore } from '@/stores/agent'
-import type { TaskStatus } from '@/types'
 import { kbApi } from '@/api/kb'
 import type { KnowledgeBase } from '@/types/kb'
+import type { TaskStatus } from '@/types'
 import dayjs from 'dayjs'
 
 const router = useRouter()
 const taskStore = useTaskStore()
 const agentStore = useAgentStore()
 
+const statusFilter = ref<'all' | TaskStatus>('all')
+const filters = [
+  { val: 'all' as const, label: '全部' },
+  { val: 'DISCUSSING' as const, label: '讨论中' },
+  { val: 'COMPLETED' as const, label: '已完成' },
+  { val: 'PENDING' as const, label: '待开始' },
+]
+
+const filtered = computed(() =>
+  taskStore.tasks.filter(t => statusFilter.value === 'all' || t.status === statusFilter.value)
+)
+
 const showCreateDialog = ref(false)
 const creating = ref(false)
 const formRef = ref<FormInstance>()
-
 const kbList = ref<KnowledgeBase[]>([])
 
 const createForm = reactive({
@@ -175,300 +129,112 @@ const createForm = reactive({
   kbId: undefined as number | undefined,
 })
 
-const fetchKbList = async () => {
-  try {
-    const res = await kbApi.getKbs({ page: 1, size: 100 })
-    kbList.value = res.items
-  } catch (error: any) {
-    console.error('获取知识库失败:', error.message)
-  }
-}
-
-// 监听目标/困惑变化，自动设置标题为前6个字
-watch(() => createForm.goal, (newGoal) => {
-  if (newGoal && !createForm.title) {
-    createForm.title = newGoal.slice(0, 6)
-  }
-})
-
-// 监听对话框打开，重新加载个人简介和知识库
-watch(() => showCreateDialog.value, (isOpen) => {
-  if (isOpen) {
-    const savedBio = localStorage.getItem('userBio')
-    if (savedBio) {
-      createForm.background = savedBio
-    }
-    // 重新预选默认Agent
-    if (createForm.agentIds.length === 0 && agentStore.availableAgents.length > 0) {
-      const presetIds = agentStore.availableAgents
-        .filter(a => a.isPreset)
-        .slice(0, 4)
-        .map(a => a.id)
-      createForm.agentIds = presetIds
-    }
-    fetchKbList()
-  } else {
-    createForm.kbId = undefined
-  }
-})
-
 const rules: FormRules = {
   title: [{ required: true, message: '请输入咨询主题', trigger: 'blur' }],
   goal: [{ required: true, message: '请描述你的目标或困惑', trigger: 'blur' }],
   agentIds: [{ required: true, message: '请至少选择一位专家', trigger: 'change', type: 'array' }],
 }
 
-onMounted(() => {
-  taskStore.fetchTasks()
-  agentStore.fetchAvailableAgents()
-  // 预选几个默认Agent
-  if (createForm.agentIds.length === 0 && agentStore.availableAgents.length > 0) {
-    const presetIds = agentStore.availableAgents
-      .filter(a => a.isPreset)
-      .slice(0, 4)
-      .map(a => a.id)
-    createForm.agentIds = presetIds
-  }
+watch(() => createForm.goal, (newGoal) => {
+  if (newGoal && !createForm.title) createForm.title = newGoal.slice(0, 6)
 })
 
-const toggleAgent = (agentId: number) => {
-  const index = createForm.agentIds.indexOf(agentId)
-  if (index > -1) {
-    createForm.agentIds.splice(index, 1)
-  } else {
-    createForm.agentIds.push(agentId)
+watch(() => showCreateDialog.value, async (isOpen) => {
+  if (!isOpen) { createForm.kbId = undefined; return }
+  const savedBio = localStorage.getItem('userBio')
+  if (savedBio) createForm.background = savedBio
+  if (createForm.agentIds.length === 0 && agentStore.availableAgents.length > 0) {
+    createForm.agentIds = agentStore.availableAgents.filter(a => a.isPreset).slice(0, 5).map(a => a.id)
   }
+  try {
+    const res = await kbApi.getKbs({ page: 1, size: 100 })
+    kbList.value = res.items
+  } catch { /* noop */ }
+})
+
+const openCreate = () => { showCreateDialog.value = true }
+
+const toggleAgent = (agentId: number) => {
+  const idx = createForm.agentIds.indexOf(agentId)
+  if (idx > -1) createForm.agentIds.splice(idx, 1)
+  else createForm.agentIds.push(agentId)
 }
 
 const handleCreate = async () => {
   if (!formRef.value) return
-
   await formRef.value.validate(async (valid) => {
-    if (valid) {
-      creating.value = true
-      try {
-        const task = await taskStore.createTask(createForm)
-        ElMessage.success('创建成功')
-        showCreateDialog.value = false
-        localStorage.removeItem('tempQuestion')
-        router.push(`/discussions/${task.id}`)
-      } finally {
-        creating.value = false
-      }
+    if (!valid) return
+    creating.value = true
+    try {
+      const task = await taskStore.createTask(createForm)
+      ElMessage.success('创建成功')
+      showCreateDialog.value = false
+      localStorage.removeItem('tempQuestion')
+      router.push(`/discussions/${task.id}`)
+    } finally {
+      creating.value = false
     }
   })
 }
 
-const goToTask = (taskId: number) => {
-  router.push(`/discussions/${taskId}`)
-}
+const goToTask = (id: number) => router.push(`/discussions/${id}`)
 
-const handleDelete = async (taskId: number) => {
+const handleDelete = async (id: number) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个咨询任务吗？', '提示', {
-      type: 'warning',
-    })
-    await taskStore.deleteTask(taskId)
-    ElMessage.success('删除成功')
-  } catch {
-    // 取消删除
-  }
+    await ElMessageBox.confirm('确定删除此咨询？', '提示', { type: 'warning' })
+    await taskStore.deleteTask(id)
+    ElMessage.success('已删除')
+  } catch { /* cancelled */ }
 }
 
-const getStatusType = (status: TaskStatus) => {
-  const types: Record<string, string> = {
-    PENDING: 'info',
-    DISCUSSING: 'primary',
-    MERGING: 'warning',
-    COMPLETED: 'success',
-    ARCHIVED: 'info',
-  }
-  return types[status] || 'info'
-}
+const toneOfStatus = (s: TaskStatus) => ({
+  PENDING: 'neutral', DISCUSSING: 'accent', MERGING: 'warning', COMPLETED: 'success', ARCHIVED: 'neutral',
+}[s] as 'neutral'|'accent'|'warning'|'success')
 
-const getStatusLabel = (status: TaskStatus) => {
-  const labels: Record<string, string> = {
-    PENDING: '待开始',
-    DISCUSSING: '讨论中',
-    MERGING: '整合中',
-    COMPLETED: '已完成',
-    ARCHIVED: '已归档',
-  }
-  return labels[status] || status
-}
+const labelOfStatus = (s: TaskStatus) => ({
+  PENDING: '待开始', DISCUSSING: '讨论中', MERGING: '整合中', COMPLETED: '已完成', ARCHIVED: '已归档',
+}[s] || s)
 
-const formatDate = (date: string) => {
-  return dayjs(date).format('MM-DD HH:mm')
-}
+const formatDate = (d: string) => dayjs(d).format('MM-DD HH:mm')
+
+onMounted(() => {
+  taskStore.fetchTasks()
+  agentStore.fetchAvailableAgents()
+})
 </script>
 
 <style scoped>
-.page-layout {
-  display: flex;
-  height: 100vh;
-}
+.tasks-page { padding: 32px 40px; max-width: 1200px; margin: 0 auto; overflow-y: auto; height: 100%; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 20px; }
+.page-head h2 { margin: 0; font-size: 22px; }
+.muted { margin: 4px 0 0; font-size: 13px; color: var(--text-secondary); }
 
-.page-content {
-  flex: 1;
-  padding: 24px 32px;
-  overflow-y: auto;
-  background: white;
-}
+.filter-tabs { display: inline-flex; gap: 4px; background: var(--bg-elevated); padding: 3px; border-radius: var(--radius-full); margin-bottom: 20px; }
+.tab { padding: 4px 14px; background: transparent; border: none; cursor: pointer; border-radius: var(--radius-full); font-size: 13px; color: var(--text-secondary); }
+.tab.on { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
+.tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.card-body { cursor: pointer; }
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.date { font-size: 12px; color: var(--text-muted); }
+.t-title { margin: 0 0 6px; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.t-goal  { margin: 0 0 16px; font-size: 13px; color: var(--text-secondary); height: 38px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
+.t-meta  { display: flex; align-items: center; justify-content: space-between; }
+.del-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: var(--radius-sm); }
+.del-btn:hover { background: rgba(239,68,68,0.08); color: var(--danger); }
 
-.page-header h2 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1f2937;
-}
+.empty-box { padding: 48px; background: var(--bg-card); border: 1px dashed var(--border-emphasis); border-radius: var(--radius-lg); }
 
-.task-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-}
-
-.task-card {
-  cursor: pointer;
-  border-radius: 12px;
-  transition: all 0.3s;
-}
-
-.task-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.delete-icon {
-  color: #9ca3af;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.delete-icon:hover {
-  color: #ef4444;
-  background: #fee2e2;
-}
-
-.task-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.task-goal {
-  font-size: 14px;
-  color: #6b7280;
-  line-height: 1.5;
-  margin-bottom: 16px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.task-date {
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-.agent-avatars {
-  display: flex;
-  align-items: center;
-  gap: -4px;
-}
-
-.agent-avatars .el-avatar {
-  margin-left: -8px;
-  border: 2px solid white;
-}
-
-.more-agents {
-  font-size: 12px;
-  color: #6b7280;
-  margin-left: 4px;
-}
-
-.agent-selection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
+.agent-selection { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
 .agent-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 2px solid transparent;
+  display: flex; align-items: center; gap: 12px; padding: 10px;
+  border-radius: var(--radius-md); cursor: pointer;
+  border: 2px solid transparent; transition: all var(--duration-fast) var(--ease-standard);
 }
-
-.agent-option:hover {
-  background: #f3f4f6;
-}
-
-.agent-option.selected {
-  background: #e0f2fe;
-  border-color: #0ea5e9;
-}
-
-.agent-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.agent-name {
-  font-weight: 500;
-  color: #1f2937;
-}
-
-.agent-desc {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.check-icon {
-  color: #0ea5e9;
-}
-
-.form-tip {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #059669;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+.agent-option:hover { background: var(--bg-elevated); }
+.agent-option.selected { background: var(--agent-dim); border-color: var(--agent); }
+.agent-info { flex: 1; display: flex; flex-direction: column; }
+.agent-name { font-weight: 500; color: var(--text-primary); font-size: 13px; }
+.agent-desc { font-size: 12px; color: var(--text-secondary); }
+.check { color: var(--agent); font-weight: 700; }
 </style>
