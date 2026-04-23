@@ -89,11 +89,21 @@ html[data-theme="dark"] {
 }
 
 /* Agent 人格色 — 饱和度略降，符合 Apple 中性感 */
+/* 职业团 */
 [data-agent-type="INDUSTRY_ANALYST"]  { --agent: #3A6EA5; --agent-dim: rgba(58,110,165,0.10); }
 [data-agent-type="SKILL_ASSESSOR"]    { --agent: #5B9377; --agent-dim: rgba(91,147,119,0.10); }
 [data-agent-type="RISK_WATCHER"]      { --agent: #C25E5E; --agent-dim: rgba(194,94,94,0.10); }
 [data-agent-type="OPPORTUNITY_HUNTER"]{ --agent: #C48E3C; --agent-dim: rgba(196,142,60,0.10); }
 [data-agent-type="VALUE_EXAMINER"]    { --agent: #8C6AB5; --agent-dim: rgba(140,106,181,0.10); }
+
+/* 法律团 */
+[data-agent-type="CONTRACT_REVIEWER"] { --agent: #6B5B95; --agent-dim: rgba(107,91,149,0.10); }
+[data-agent-type="LITIGATION_ANALYST"]{ --agent: #B25040; --agent-dim: rgba(178,80,64,0.10); }
+[data-agent-type="RIGHTS_DEFENDER"]   { --agent: #4A7BB5; --agent-dim: rgba(74,123,181,0.10); }
+[data-agent-type="PRACTICAL_COUNSEL"] { --agent: #5B7C3A; --agent-dim: rgba(91,124,58,0.10); }
+[data-agent-type="MEDIATION_ADVISOR"] { --agent: #B28C5B; --agent-dim: rgba(178,140,91,0.10); }
+
+/* 特殊 */
 [data-agent-type="CUSTOM"]            { --agent: #636366; --agent-dim: rgba(99,99,102,0.10); }
 [data-agent-type="MERGE_AGENT"]       { --agent: #1D1D1F; --agent-dim: rgba(29,29,31,0.08); }
 
@@ -102,3 +112,8 @@ html[data-theme="dark"] [data-agent-type="SKILL_ASSESSOR"]     { --agent: #7DCAA
 html[data-theme="dark"] [data-agent-type="RISK_WATCHER"]       { --agent: #E88484; }
 html[data-theme="dark"] [data-agent-type="OPPORTUNITY_HUNTER"] { --agent: #E8B864; }
 html[data-theme="dark"] [data-agent-type="VALUE_EXAMINER"]     { --agent: #B294D9; }
+html[data-theme="dark"] [data-agent-type="CONTRACT_REVIEWER"]  { --agent: #9C87C9; }
+html[data-theme="dark"] [data-agent-type="LITIGATION_ANALYST"] { --agent: #DD7668; }
+html[data-theme="dark"] [data-agent-type="RIGHTS_DEFENDER"]    { --agent: #7AA9DE; }
+html[data-theme="dark"] [data-agent-type="PRACTICAL_COUNSEL"]  { --agent: #8CAE62; }
+html[data-theme="dark"] [data-agent-type="MEDIATION_ADVISOR"]  { --agent: #D9B485; }

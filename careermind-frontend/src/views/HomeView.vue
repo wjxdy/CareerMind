@@ -10,25 +10,31 @@
     </header>
 
     <section class="hero">
-      <p class="eyebrow">多 Agent 职业决策系统</p>
-      <h1 class="title">五位 AI 专家<br/>为你的决定辩一场</h1>
+      <p class="eyebrow">多 Agent 协同咨询</p>
+      <h1 class="title">让多位 AI 专家<br/>为你的问题辩一场</h1>
       <p class="subtitle">
-        每一次人生转折都该经过一场严肃的辩论，<br class="break-lg"/>
-        而不是一次 ChatGPT。
+        不管是职业转型、合同纠纷，还是人生选择，<br class="break-lg"/>
+        让不同视角的专家辩论后，答案才可靠。
       </p>
       <div class="cta">
         <BaseButton variant="primary" size="lg" @click="start">开始咨询</BaseButton>
         <a class="learn-link" href="#experts" @click.prevent="scrollTo('experts')">
-          了解五位专家 <span class="arrow">→</span>
+          了解专家团 <span class="arrow">→</span>
         </a>
       </div>
     </section>
 
     <section id="experts" class="experts">
       <p class="eyebrow">专家团</p>
-      <h2 class="sec-title">五种视角，一次讨论</h2>
+      <h2 class="sec-title">按领域编队，多种视角</h2>
+      <div class="team-tabs">
+        <button v-for="t in teams" :key="t.key" class="team-tab" :class="{ on: activeTeam === t.key }" @click="activeTeam = t.key">
+          {{ t.label }}
+          <span class="count">· {{ t.agents.length }}</span>
+        </button>
+      </div>
       <div class="experts-grid">
-        <AgentCard v-for="t in expertTypes" :key="t" :type="t" />
+        <AgentCard v-for="a in currentTeamAgents" :key="a" :type="a" />
       </div>
     </section>
 
@@ -62,14 +68,14 @@
 
     <footer class="foot">
       <BrandLogo size="sm" />
-      <span class="foot-text">CareerMind · 多 Agent 职业决策系统</span>
+      <span class="foot-text">CareerMind · 多 Agent 协同咨询</span>
       <span class="foot-right">© 2026</span>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import BrandLogo from '@/components/ui/BrandLogo.vue'
@@ -81,19 +87,24 @@ import type { AgentType } from '@/types'
 const router = useRouter()
 const user = computed(() => useUserStore().user)
 
-const expertTypes: AgentType[] = ['INDUSTRY_ANALYST', 'SKILL_ASSESSOR', 'RISK_WATCHER', 'OPPORTUNITY_HUNTER', 'VALUE_EXAMINER']
+const teams = [
+  { key: 'career' as const, label: '职业团', agents: ['INDUSTRY_ANALYST','SKILL_ASSESSOR','RISK_WATCHER','OPPORTUNITY_HUNTER','VALUE_EXAMINER'] as AgentType[] },
+  { key: 'legal'  as const, label: '法律团', agents: ['CONTRACT_REVIEWER','LITIGATION_ANALYST','RIGHTS_DEFENDER','PRACTICAL_COUNSEL','MEDIATION_ADVISOR'] as AgentType[] },
+]
+const activeTeam = ref<'career' | 'legal'>('career')
+const currentTeamAgents = computed(() => teams.find(t => t.key === activeTeam.value)?.agents || [])
 
 const flowSteps = [
-  { name: '独立诊断', desc: '五位专家独立给出各自视角的判断，不互相干扰。' },
+  { name: '独立诊断', desc: '各位专家独立给出各自视角的判断，不互相干扰。' },
   { name: '质疑挑战', desc: '专家相互质疑对方的观点，暴露盲区与假设。' },
   { name: '修正完善', desc: '每位专家基于反馈修正或坚持自己的立场。' },
   { name: '最终陈述', desc: '汇总为候选方案，并标注共识度与适用条件。' },
 ]
 
 const useCases = [
-  { title: '转行抉择',     desc: '在留守与转行之间权衡能力迁移、机会成本与风险。' },
-  { title: '晋升 vs 跳槽', desc: '评估内部晋升路径与外部跳槽窗口的真实价值。' },
-  { title: '升学 / 读研',   desc: '考察是否值得为深造让渡 2-3 年时间。' },
+  { title: '职业决策',     desc: '转行、跳槽、晋升、读研，多视角权衡能力迁移与机会成本。' },
+  { title: '合同与纠纷',   desc: '审合同、估打官司胜算、维权路径与和解方案。' },
+  { title: '重大选择',     desc: '只要问题没有标准答案，就值得让多方视角先辩一辩。' },
 ]
 
 const start = () => router.push(user.value ? '/tasks' : '/login')
@@ -129,7 +140,6 @@ html[data-theme="dark"] .nav { background: rgba(0,0,0,0.72); }
   color: var(--accent);
   letter-spacing: 0.02em;
   margin: 0 0 20px;
-  text-transform: none;
 }
 .title {
   font-size: 88px;
@@ -147,9 +157,7 @@ html[data-theme="dark"] .nav { background: rgba(0,0,0,0.72); }
   margin: 0 auto 44px;
   max-width: 680px;
 }
-.cta {
-  display: inline-flex; align-items: center; gap: 24px;
-}
+.cta { display: inline-flex; align-items: center; gap: 24px; }
 .learn-link {
   color: var(--accent);
   font-size: 16px; font-weight: 500;
@@ -167,14 +175,35 @@ section {
 .sec-title {
   font-size: 52px; font-weight: 600;
   letter-spacing: -0.025em;
-  margin: 0 0 56px;
+  margin: 0 0 40px;
 }
 
-/* Experts grid — bigger, more spacing */
+/* Experts section with tabs */
+.experts { text-align: center; }
+.experts .sec-title { margin-bottom: 24px; }
+.team-tabs {
+  display: inline-flex; gap: 4px;
+  background: var(--bg-elevated);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  margin: 0 auto 40px;
+}
+.team-tab {
+  padding: 9px 22px;
+  background: transparent; border: none;
+  font-size: 14px; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: all var(--duration-fast) var(--ease-standard);
+  letter-spacing: -0.005em;
+}
+.team-tab.on { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.team-tab .count { color: var(--text-muted); font-size: 12px; margin-left: 2px; font-weight: 400; }
 .experts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 14px;
+  text-align: left;
 }
 
 /* Flow steps */
@@ -198,7 +227,7 @@ section {
 .step-name { font-size: 22px; margin: 0 0 10px; letter-spacing: -0.015em; }
 .step-desc { margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
 
-/* Use cases — cards without borders */
+/* Use cases */
 .cases-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -241,7 +270,7 @@ section {
   .hero { padding: 80px 20px 60px; }
   .title { font-size: 48px; }
   .subtitle { font-size: 17px; }
-  .sec-title { font-size: 34px; margin-bottom: 40px; }
+  .sec-title { font-size: 34px; margin-bottom: 32px; }
   section { padding: 70px 20px; }
   .flow-steps { grid-template-columns: repeat(2, 1fr); }
   .final-cta h2 { font-size: 36px; }

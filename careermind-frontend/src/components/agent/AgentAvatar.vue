@@ -29,6 +29,22 @@
           <g v-else-if="meta.symbol === 'question'">
             <path d="M-2 -3 Q-2 -6 0 -6 Q3 -6 3 -3 Q3 0 0 1 V3" /><circle cx="0" cy="5" r="0.6" fill="var(--agent)" />
           </g>
+          <!-- book (合同/法条) -->
+          <g v-else-if="meta.symbol === 'book'">
+            <path d="M-5 -5 H5 V5 H-5 Z" /><path d="M0 -5 V5" /><path d="M-3 -2 H-1 M-3 1 H-1 M1 -2 H3 M1 1 H3" />
+          </g>
+          <!-- scales (天平) -->
+          <g v-else-if="meta.symbol === 'scales'">
+            <path d="M0 -5 V5 M-4 5 H4" /><circle cx="-4" cy="0" r="2.5" /><circle cx="4" cy="0" r="2.5" />
+          </g>
+          <!-- handshake (调解) -->
+          <g v-else-if="meta.symbol === 'handshake'">
+            <path d="M-5 0 L-2 -2 L1 0 L4 -2 L5 0" /><path d="M-5 0 L-5 3 M5 0 L5 3" />
+          </g>
+          <!-- gavel (法槌) -->
+          <g v-else-if="meta.symbol === 'gavel'">
+            <path d="M-5 -5 L1 1 M-2 -2 L-4 0 L-2 2 L0 0 Z" /><path d="M1 1 L5 5" />
+          </g>
           <g v-else>
             <circle cx="0" cy="-2" r="2" /><path d="M-4 6 Q0 2 4 6" />
           </g>

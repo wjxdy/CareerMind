@@ -8,13 +8,23 @@ export interface User {
 
 // Agent类型
 export type AgentType =
+  // 职业团
   | 'INDUSTRY_ANALYST'
   | 'SKILL_ASSESSOR'
   | 'RISK_WATCHER'
   | 'OPPORTUNITY_HUNTER'
   | 'VALUE_EXAMINER'
+  // 法律团
+  | 'CONTRACT_REVIEWER'
+  | 'LITIGATION_ANALYST'
+  | 'RIGHTS_DEFENDER'
+  | 'PRACTICAL_COUNSEL'
+  | 'MEDIATION_ADVISOR'
+  // 特殊
   | 'MERGE_AGENT'
   | 'CUSTOM'
+
+export type AgentCategory = 'CAREER' | 'LEGAL' | 'CUSTOM' | 'SYSTEM'
 
 export interface Agent {
   id: number
