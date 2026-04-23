@@ -19,14 +19,18 @@ const meta = computed(() => getAgentMeta(props.type))
 <style scoped>
 .agent-card {
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  padding: 24px 20px; background: var(--bg-card);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
-  transition: all var(--duration-base) var(--ease-standard);
+  padding: 32px 24px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  transition: transform var(--duration-base) var(--ease-standard),
+              background var(--duration-base) var(--ease-standard);
 }
 .agent-card:hover {
-  border-color: var(--agent); transform: translateY(-4px); box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md);
 }
-.card-avatar { margin-bottom: 16px; }
-.card-name  { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.card-avatar { margin-bottom: 18px; }
+.card-name  { margin: 0 0 6px; font-size: 16px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; }
 .card-role  { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 </style>

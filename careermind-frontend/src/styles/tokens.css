@@ -1,73 +1,104 @@
 :root {
-  --bg-page:         #FAFAFA;
+  /* ---- Background ---- */
+  --bg-page:         #FFFFFF;
   --bg-card:         #FFFFFF;
-  --bg-elevated:     #F4F4F5;
-  --bg-inset:        #F9FAFB;
+  --bg-elevated:     #F5F5F7;   /* Apple system gray 6 */
+  --bg-inset:        #FBFBFD;
 
-  --border-subtle:   #E4E4E7;
-  --border-emphasis: #D4D4D8;
-  --border-strong:   #A1A1AA;
+  /* ---- Borders (very subtle) ---- */
+  --border-subtle:   #E8E8ED;
+  --border-emphasis: #D2D2D7;   /* Apple separator */
+  --border-strong:   #86868B;
 
-  --text-primary:    #09090B;
-  --text-secondary:  #52525B;
-  --text-muted:      #A1A1AA;
-  --text-inverse:    #FAFAFA;
+  /* ---- Text ---- */
+  --text-primary:    #1D1D1F;   /* Apple label */
+  --text-secondary:  #86868B;   /* Apple secondary label */
+  --text-muted:      #AEAEB2;
+  --text-inverse:    #F5F5F7;
 
-  --accent:          #3B82F6;
-  --accent-hover:    #2563EB;
-  --accent-dim:      #EFF6FF;
+  /* ---- Accent ---- */
+  --accent:          #0071E3;   /* Apple blue */
+  --accent-hover:    #0077ED;
+  --accent-dim:      rgba(0,113,227,0.10);
   --accent-contrast: #FFFFFF;
 
-  --success:         #10B981;
-  --warning:         #F59E0B;
-  --danger:          #EF4444;
+  /* Black CTA (Apple's signature pill) */
+  --cta-bg:          #1D1D1F;
+  --cta-bg-hover:    #000000;
+  --cta-text:        #F5F5F7;
 
-  --shadow-sm:       0 1px 2px rgb(0 0 0 / 0.04);
-  --shadow-md:       0 4px 12px rgb(0 0 0 / 0.06);
-  --shadow-lg:       0 10px 32px rgb(0 0 0 / 0.10);
+  --success:         #30D158;   /* Apple green */
+  --warning:         #FF9F0A;   /* Apple orange */
+  --danger:          #FF453A;   /* Apple red */
 
-  --radius-sm:       6px;
-  --radius-md:       10px;
-  --radius-lg:       16px;
+  /* ---- Shadows (very soft) ---- */
+  --shadow-sm:       0 1px 3px rgb(0 0 0 / 0.03);
+  --shadow-md:       0 6px 24px rgb(0 0 0 / 0.06);
+  --shadow-lg:       0 20px 60px rgb(0 0 0 / 0.08);
+
+  /* ---- Radii (generous) ---- */
+  --radius-sm:       8px;
+  --radius-md:       14px;
+  --radius-lg:       20px;
   --radius-full:     9999px;
 
-  --font-sans:       "Inter", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-  --font-mono:       "JetBrains Mono", ui-monospace, Menlo, monospace;
-  --font-serif-zh:   "Noto Serif SC", serif;
+  /* ---- Typography ---- */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", "Segoe UI", Roboto,
+    "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --font-serif-zh:
+    "Noto Serif SC", "Source Han Serif SC", "STSong", serif;
 
-  --duration-fast:   120ms;
-  --duration-base:   240ms;
-  --duration-slow:   480ms;
-  --ease-standard:   cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  /* ---- Motion ---- */
+  --duration-fast:   150ms;
+  --duration-base:   280ms;
+  --duration-slow:   560ms;
+  --ease-standard:   cubic-bezier(0.42, 0, 0.58, 1);
+  --ease-emphasized: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 html[data-theme="dark"] {
-  --bg-page:         #09090B;
-  --bg-card:         #18181B;
-  --bg-elevated:     #27272A;
-  --bg-inset:        #111113;
-  --border-subtle:   #27272A;
-  --border-emphasis: #3F3F46;
-  --border-strong:   #52525B;
-  --text-primary:    #FAFAFA;
-  --text-secondary:  #D4D4D8;
-  --text-muted:      #71717A;
-  --accent:          #60A5FA;
-  --accent-hover:    #3B82F6;
-  --accent-dim:      rgba(30,58,138,0.2);
+  --bg-page:         #000000;       /* Apple OLED pure black */
+  --bg-card:         #1C1C1E;
+  --bg-elevated:     #2C2C2E;
+  --bg-inset:        #1A1A1C;
+
+  --border-subtle:   #2C2C2E;
+  --border-emphasis: #3A3A3C;
+  --border-strong:   #636366;
+
+  --text-primary:    #F5F5F7;
+  --text-secondary:  #98989D;
+  --text-muted:      #636366;
+  --text-inverse:    #1D1D1F;
+
+  --accent:          #2997FF;       /* Apple dark blue */
+  --accent-hover:    #409CFF;
+  --accent-dim:      rgba(41,151,255,0.15);
+
+  --cta-bg:          #F5F5F7;       /* dark mode: light CTA */
+  --cta-bg-hover:    #FFFFFF;
+  --cta-text:        #1D1D1F;
+
+  --shadow-sm:       0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-md:       0 6px 24px rgb(0 0 0 / 0.4);
+  --shadow-lg:       0 20px 60px rgb(0 0 0 / 0.5);
 }
 
-[data-agent-type="INDUSTRY_ANALYST"]  { --agent: #1E3A8A; --agent-dim: rgba(30,58,138,0.10); }
-[data-agent-type="SKILL_ASSESSOR"]    { --agent: #0D9488; --agent-dim: rgba(13,148,136,0.10); }
-[data-agent-type="RISK_WATCHER"]      { --agent: #B45309; --agent-dim: rgba(180,83,9,0.10); }
-[data-agent-type="OPPORTUNITY_HUNTER"]{ --agent: #CA8A04; --agent-dim: rgba(202,138,4,0.10); }
-[data-agent-type="VALUE_EXAMINER"]    { --agent: #9333EA; --agent-dim: rgba(147,51,234,0.10); }
-[data-agent-type="CUSTOM"]            { --agent: #525B6B; --agent-dim: rgba(82,91,107,0.10); }
-[data-agent-type="MERGE_AGENT"]       { --agent: #111827; --agent-dim: rgba(17,24,39,0.10); }
+/* Agent 人格色 — 饱和度略降，符合 Apple 中性感 */
+[data-agent-type="INDUSTRY_ANALYST"]  { --agent: #3A6EA5; --agent-dim: rgba(58,110,165,0.10); }
+[data-agent-type="SKILL_ASSESSOR"]    { --agent: #5B9377; --agent-dim: rgba(91,147,119,0.10); }
+[data-agent-type="RISK_WATCHER"]      { --agent: #C25E5E; --agent-dim: rgba(194,94,94,0.10); }
+[data-agent-type="OPPORTUNITY_HUNTER"]{ --agent: #C48E3C; --agent-dim: rgba(196,142,60,0.10); }
+[data-agent-type="VALUE_EXAMINER"]    { --agent: #8C6AB5; --agent-dim: rgba(140,106,181,0.10); }
+[data-agent-type="CUSTOM"]            { --agent: #636366; --agent-dim: rgba(99,99,102,0.10); }
+[data-agent-type="MERGE_AGENT"]       { --agent: #1D1D1F; --agent-dim: rgba(29,29,31,0.08); }
 
-html[data-theme="dark"] [data-agent-type="INDUSTRY_ANALYST"]   { --agent: #60A5FA; }
-html[data-theme="dark"] [data-agent-type="SKILL_ASSESSOR"]     { --agent: #2DD4BF; }
-html[data-theme="dark"] [data-agent-type="RISK_WATCHER"]       { --agent: #FB923C; }
-html[data-theme="dark"] [data-agent-type="OPPORTUNITY_HUNTER"] { --agent: #FCD34D; }
-html[data-theme="dark"] [data-agent-type="VALUE_EXAMINER"]     { --agent: #C084FC; }
+html[data-theme="dark"] [data-agent-type="INDUSTRY_ANALYST"]   { --agent: #64A3E8; }
+html[data-theme="dark"] [data-agent-type="SKILL_ASSESSOR"]     { --agent: #7DCAA0; }
+html[data-theme="dark"] [data-agent-type="RISK_WATCHER"]       { --agent: #E88484; }
+html[data-theme="dark"] [data-agent-type="OPPORTUNITY_HUNTER"] { --agent: #E8B864; }
+html[data-theme="dark"] [data-agent-type="VALUE_EXAMINER"]     { --agent: #B294D9; }

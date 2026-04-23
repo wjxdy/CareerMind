@@ -28,43 +28,42 @@ const isUser = computed(() => props.message.messageType === 'USER' || props.mess
 const isInterjection = computed(() => props.message.messageType === 'INTERJECTION')
 const agentType = computed(() => props.message.agentType || 'CUSTOM')
 const displayName = computed(() => isUser.value ? '你' : (isInterjection.value ? `${props.message.agentName} · 回应插话` : props.message.agentName))
-const timeText = computed(() => props.message.createdAt ? dayjs(props.message.createdAt).format('HH:mm:ss') : '')
+const timeText = computed(() => props.message.createdAt ? dayjs(props.message.createdAt).format('HH:mm') : '')
 const formatted = computed(() => marked(props.message.content || ''))
 </script>
 
 <style scoped>
 .msg {
-  display: flex; gap: 10px; padding: 12px; margin-bottom: 10px;
-  background: var(--bg-card); border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--agent); border-radius: var(--radius-md);
+  display: flex; gap: 12px; padding: 16px 4px;
+  border-bottom: 1px solid var(--border-subtle);
   animation: slideIn var(--duration-base) var(--ease-standard);
 }
-.msg.streaming { border-left-color: var(--accent); background: linear-gradient(90deg, var(--accent-dim) 0%, var(--bg-card) 40%); }
-.msg.user      { border-left-color: var(--success); background: linear-gradient(90deg, rgba(16,185,129,0.08) 0%, var(--bg-card) 40%); }
-.msg.interjection { border-left-color: var(--warning); }
+.msg:last-child { border-bottom: none; }
+.msg.user .user-avatar { background: var(--cta-bg); color: var(--cta-text); }
+.msg.interjection { background: var(--bg-elevated); border-radius: var(--radius-md); padding: 14px 16px; border-bottom: none; margin-bottom: 2px; }
 
 .user-avatar {
   width: 30px; height: 30px; border-radius: 50%;
-  background: var(--success); color: white;
+  background: var(--cta-bg); color: var(--cta-text);
   display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0;
 }
 
 .msg-body { flex: 1; min-width: 0; }
-.msg-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.msg-name { font-size: 13px; font-weight: 600; color: var(--agent); }
-.msg.user .msg-name { color: var(--success); }
+.msg-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.msg-name { font-size: 14px; font-weight: 600; color: var(--agent); letter-spacing: -0.005em; }
+.msg.user .msg-name { color: var(--text-primary); }
 .msg-time { font-size: 11px; color: var(--text-muted); }
 
-.typing { display: inline-flex; gap: 3px; }
-.dot { width: 4px; height: 4px; background: var(--accent); border-radius: 50%; animation: typing 1.4s infinite ease-in-out both; }
+.typing { display: inline-flex; gap: 3px; align-items: center; }
+.dot { width: 4px; height: 4px; background: var(--agent); border-radius: 50%; animation: typing 1.4s infinite ease-in-out both; }
 .dot:nth-child(1) { animation-delay: -0.32s; } .dot:nth-child(2) { animation-delay: -0.16s; }
-@keyframes typing { 0%,80%,100% { transform: scale(0); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+@keyframes typing { 0%,80%,100% { transform: scale(0); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
 
-.msg-content { font-size: 13px; line-height: 1.6; color: var(--text-primary); word-break: break-word; }
+.msg-content { font-size: 14px; line-height: 1.7; color: var(--text-primary); word-break: break-word; }
 .msg-content :deep(p) { margin: 4px 0; }
-.msg-content :deep(ul), .msg-content :deep(ol) { margin: 6px 0; padding-left: 18px; }
+.msg-content :deep(ul), .msg-content :deep(ol) { margin: 6px 0; padding-left: 20px; }
 .msg-content :deep(strong) { color: var(--text-primary); }
 .msg-content :deep(a) { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
 
-@keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 </style>

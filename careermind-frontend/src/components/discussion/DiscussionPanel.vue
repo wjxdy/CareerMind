@@ -1,7 +1,9 @@
 <template>
   <div class="panel">
     <header class="panel-head" v-if="task">
-      <button class="back-btn" @click="$router.push(`/tasks/${task.id}`)">←</button>
+      <button class="back-btn" @click="$router.push(`/tasks/${task.id}`)" title="返回">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
       <div class="head-title">
         <h3>{{ task.title }}</h3>
         <p v-if="task.goal" class="head-goal">{{ task.goal.slice(0, 80) }}</p>
@@ -16,35 +18,43 @@
       </div>
     </header>
 
-    <div class="panel-body">
-      <div class="stage-wrap">
-        <RoundtableStage
-          :agents="task?.agents || []"
-          :current-speaker-agent-id="streamingMessage?.agentId ?? null"
-          :streaming-content="streamingMessage?.content"
-          :topic="task?.goal || task?.title"
-          :round-label="roundLabelText"
-          :latest-challenge="latestChallenge"
-        />
-        <div v-if="!hasDiscussion" class="stage-overlay">
-          <BaseButton variant="primary" size="lg" @click="handleStart">▶ 开始讨论</BaseButton>
-          <p class="overlay-hint">5 位 AI 专家将进行 4 轮辩论</p>
-        </div>
-        <div class="thermo-slot">
-          <ThermoBar :divergence="currentDivergence" :delta-text="deltaText" />
-        </div>
+    <AgentRoster
+      :agents="task?.agents || []"
+      :current-speaker-agent-id="streamingMessage?.agentId ?? null"
+    />
+
+    <SpeakerSpotlight
+      :show="!!streamingMessage"
+      :agent-type="streamingMessage?.agentType"
+      :agent-name="streamingMessage?.agentName"
+      :content="streamingMessage?.content"
+    />
+
+    <ConversationFeed
+      :rounds="discussion?.rounds || []"
+      :streaming-message="streamingMessage"
+      :round-divergences="roundDivergences"
+    />
+
+    <div v-if="!hasDiscussion" class="start-overlay">
+      <div class="overlay-inner">
+        <h2>{{ task?.title || '准备开始讨论' }}</h2>
+        <p class="overlay-hint">5 位 AI 专家将进行 4 轮辩论</p>
+        <BaseButton variant="primary" size="lg" @click="handleStart">开始讨论</BaseButton>
       </div>
-      <MessageDrawer v-model:open="drawerOpen" :rounds="discussion?.rounds || []" :streaming-message="streamingMessage" />
     </div>
 
     <footer class="panel-foot">
+      <div class="foot-left">
+        <ThermoBar :divergence="currentDivergence" :delta-text="deltaText" />
+      </div>
       <div class="foot-input">
-        <BaseInput v-model="userInput" placeholder="输入想对专家说的话 (可选)…" @keyup="onInputKeyup" />
+        <BaseInput v-model="userInput" placeholder="向专家插话（可选）" @keyup="onInputKeyup" />
       </div>
       <div class="foot-actions">
         <BaseButton variant="secondary" size="md" @click="sendMessage" :disabled="!userInput.trim()">插话</BaseButton>
-        <BaseButton variant="secondary" size="md" @click="handleNextRound" :disabled="!discussion?.isActive">下一轮 ▷</BaseButton>
-        <BaseButton variant="primary" size="md" @click="goResult">生成报告 📄</BaseButton>
+        <BaseButton variant="secondary" size="md" @click="handleNextRound" :disabled="!discussion?.isActive">下一轮</BaseButton>
+        <BaseButton variant="primary" size="md" @click="goResult">查看结果</BaseButton>
       </div>
     </footer>
   </div>
@@ -54,8 +64,9 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message as ElMessage } from '@/utils/naive-discrete'
-import RoundtableStage from './RoundtableStage.vue'
-import MessageDrawer from './MessageDrawer.vue'
+import AgentRoster from './AgentRoster.vue'
+import SpeakerSpotlight from './SpeakerSpotlight.vue'
+import ConversationFeed from './ConversationFeed.vue'
 import DiscussionControl from './DiscussionControl.vue'
 import RoundTimeline from './RoundTimeline.vue'
 import ThermoBar from './ThermoBar.vue'
@@ -70,21 +81,14 @@ const router = useRouter()
 const task = ref<Task | null>(null)
 const discussion = ref<Discussion | null>(null)
 const userInput = ref('')
-const drawerOpen = ref(localStorage.getItem('cm-drawer-collapsed') !== '1')
-watch(drawerOpen, v => localStorage.setItem('cm-drawer-collapsed', v ? '0' : '1'))
 const streamingMessage = ref<Message | null>(null)
 const streamingContent = ref('')
-const latestChallenge = ref<{ fromAgentId: number; toAgentId: number; triggerAt: number } | null>(null)
 const currentDivergence = ref(0.5)
 const deltaText = ref<string | null>(null)
+const roundDivergences = ref<Record<number, number>>({})
 let ws: WebSocket | null = null
 
 const hasDiscussion = computed(() => !!discussion.value && (discussion.value.rounds.length > 0 || discussion.value.isActive))
-const roundLabelText = computed(() => {
-  const r = discussion.value?.currentRound; if (!r) return ''
-  const labels: Record<number, string> = { 1: '独立诊断', 2: '质疑挑战', 3: '修正完善', 4: '最终陈述' }
-  return `第 ${r} 轮 · ${labels[r] || ''}`
-})
 
 onMounted(async () => { await loadTask(); await loadDiscussion(); connect() })
 onUnmounted(() => ws?.close())
@@ -92,11 +96,24 @@ onUnmounted(() => ws?.close())
 watch(() => props.taskId, async (n, o) => {
   if (n === o) return
   ws?.close(); streamingMessage.value = null; streamingContent.value = ''
+  roundDivergences.value = {}
   await loadTask(); await loadDiscussion(); connect()
 })
 
 const loadTask = async () => { try { task.value = await taskApi.getTaskById(props.taskId) } catch { task.value = null } }
-const loadDiscussion = async () => { try { discussion.value = await discussionApi.getDiscussion(props.taskId) } catch { discussion.value = null } }
+const loadDiscussion = async () => {
+  try {
+    discussion.value = await discussionApi.getDiscussion(props.taskId)
+    // hydrate roundDivergences from backend if present on rounds (as side effect of Discussion API)
+    // 若后端在 RoundDto 带了 divergence 字段则读取；否则走 WS graph_delta 累积
+    const rounds = discussion.value?.rounds as Array<{ roundNumber: number; divergence?: number }> | undefined
+    if (rounds) {
+      for (const r of rounds) {
+        if (typeof r.divergence === 'number') roundDivergences.value[r.roundNumber] = r.divergence
+      }
+    }
+  } catch { discussion.value = null }
+}
 
 const connect = () => {
   const url = `ws://${window.location.host}/ws/discussion?taskId=${props.taskId}`
@@ -119,24 +136,22 @@ const connect = () => {
         }
         break
       case 'stream_end':
-        if (streamingMessage.value && d.data?.replyToAgentId) {
-          latestChallenge.value = { fromAgentId: streamingMessage.value.agentId, toAgentId: d.data.replyToAgentId, triggerAt: Date.now() }
-        }
         streamingMessage.value = null; streamingContent.value = ''
         loadDiscussion()
         break
       case 'message':
         loadDiscussion()
         break
-      case 'result_stream_end':
-        ElMessage.success('结果已生成'); break
       case 'graph_delta':
         if (typeof d.divergence === 'number') {
           currentDivergence.value = d.divergence
+          roundDivergences.value[d.roundNumber] = d.divergence
           deltaText.value = `第 ${d.roundNumber} 轮 共识度 ${Math.round((1 - d.divergence) * 100)}%`
           setTimeout(() => (deltaText.value = null), 1500)
         }
         break
+      case 'result_stream_end':
+        ElMessage.success('结果已生成'); break
     }
   }
 }
@@ -159,33 +174,55 @@ const goResult = () => router.push(`/results/${props.taskId}`)
 </script>
 
 <style scoped>
-.panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-page); }
+.panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-page); position: relative; }
 
 .panel-head {
   display: flex; align-items: center; gap: 16px;
-  padding: 12px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+  padding: 14px 24px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  position: relative; z-index: 5;
 }
-.back-btn { width: 28px; height: 28px; background: transparent; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-secondary); cursor: pointer; }
+html[data-theme="dark"] .panel-head { background: rgba(0,0,0,0.7); }
+.back-btn {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: var(--radius-full);
+  color: var(--text-secondary); cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
 .back-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
 .head-title { flex: 1; min-width: 0; }
-.head-title h3 { margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.head-title h3 { margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.01em; }
 .head-goal { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.head-right { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.head-right { display: flex; align-items: center; gap: 18px; flex-shrink: 0; }
 
-.panel-body { flex: 1; display: flex; min-height: 0; }
-.stage-wrap { flex: 1; position: relative; min-width: 0; }
-.stage-overlay {
-  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; background: rgba(250,250,250,0.4); backdrop-filter: blur(2px); z-index: 5;
+.start-overlay {
+  position: absolute; inset: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
-html[data-theme="dark"] .stage-overlay { background: rgba(9,9,11,0.4); }
-.overlay-hint { font-size: 13px; color: var(--text-muted); margin: 0; }
-.thermo-slot { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; }
+html[data-theme="dark"] .start-overlay { background: rgba(0,0,0,0.85); }
+.overlay-inner {
+  text-align: center; padding: 48px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.overlay-inner h2 { font-size: 36px; margin: 0 0 4px; letter-spacing: -0.025em; }
+.overlay-hint { font-size: 16px; color: var(--text-secondary); margin: 0 0 16px; }
 
 .panel-foot {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 20px; background: var(--bg-card); border-top: 1px solid var(--border-subtle); flex-shrink: 0;
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 24px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
+.foot-left { flex-shrink: 0; }
 .foot-input { flex: 1; }
 .foot-actions { display: flex; gap: 8px; flex-shrink: 0; }
 </style>

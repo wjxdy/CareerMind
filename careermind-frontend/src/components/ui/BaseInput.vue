@@ -45,19 +45,28 @@ defineEmits<{
 </script>
 
 <style scoped>
-.input-wrap { display: flex; flex-direction: column; gap: 6px; }
-.input-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.input-wrap { display: flex; flex-direction: column; gap: 8px; }
+.input-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); letter-spacing: -0.005em; }
 .input {
-  width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit;
-  background: var(--bg-card); color: var(--text-primary);
-  border: 1px solid var(--border-emphasis); border-radius: var(--radius-md);
-  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              box-shadow var(--duration-fast) var(--ease-standard);
   outline: none;
 }
-textarea.input { resize: vertical; min-height: 96px; line-height: 1.5; }
-.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-.input:disabled { background: var(--bg-elevated); cursor: not-allowed; }
-.error .input { border-color: var(--danger); }
+textarea.input { resize: vertical; min-height: 100px; line-height: 1.6; }
+.input::placeholder { color: var(--text-muted); }
+.input:hover { background: var(--bg-card); border-color: var(--border-subtle); }
+.input:focus { background: var(--bg-card); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-dim); }
+.input:disabled { opacity: 0.5; cursor: not-allowed; }
+.error .input { border-color: var(--danger); box-shadow: 0 0 0 4px rgba(255,69,58,0.10); }
 .hint { font-size: 12px; color: var(--danger); margin: 0; }
 .hint.muted { color: var(--text-muted); }
 </style>

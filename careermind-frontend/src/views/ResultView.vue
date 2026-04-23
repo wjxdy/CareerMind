@@ -2,7 +2,7 @@
   <PageShell>
     <div class="result-view" v-if="mergeResult">
       <header class="banner">
-        <BrandLogo size="sm" />
+        <p class="eyebrow">讨论结果</p>
         <h1>你的职业决策</h1>
         <div class="banner-stats">
           <div class="stat"><span class="num">{{ toPercent(mergeResult.convergenceRate) }}%</span><span class="lbl">共识度</span></div>
@@ -82,7 +82,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message as ElMessage } from '@/utils/naive-discrete'
 import PageShell from '@/components/ui/PageShell.vue'
-import BrandLogo from '@/components/ui/BrandLogo.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -149,22 +148,25 @@ const onExport = () => {
 </script>
 
 <style scoped>
-.result-view { padding: 0; overflow-y: auto; height: 100%; }
+.result-view { padding: 0; overflow-y: auto; height: 100%; background: var(--bg-page); }
 
 .banner {
-  padding: 48px 40px;
-  background: linear-gradient(135deg, var(--accent-dim) 0%, var(--bg-card) 100%);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 72px 40px 48px;
+  background: var(--bg-page);
+  max-width: 1200px; margin: 0 auto;
   display: flex; flex-direction: column; gap: 12px;
 }
-.banner h1 { font-size: 36px; margin: 4px 0; }
-.banner-stats { display: flex; gap: 32px; margin-top: 12px; }
-.stat { display: flex; flex-direction: column; }
-.num { font-size: 32px; font-weight: 700; color: var(--accent); line-height: 1.2; }
-.lbl { font-size: 12px; color: var(--text-secondary); }
+.banner h1 { font-size: 56px; margin: 8px 0 0; letter-spacing: -0.03em; }
+.banner-stats {
+  display: flex; gap: 56px; margin-top: 28px;
+  padding: 24px 0 0; border-top: 1px solid var(--border-subtle);
+}
+.stat { display: flex; flex-direction: column; gap: 6px; }
+.num { font-size: 40px; font-weight: 600; color: var(--text-primary); line-height: 1; letter-spacing: -0.02em; }
+.lbl { font-size: 13px; color: var(--text-secondary); }
 
-section { padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
-.sec-title { font-size: 18px; margin: 0 0 16px; }
+section { padding: 40px 40px; max-width: 1200px; margin: 0 auto; }
+.sec-title { font-size: 28px; margin: 0 0 24px; letter-spacing: -0.02em; font-weight: 600; }
 .summary-text { margin: 0; font-size: 14px; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
 .summary-text :deep(a), .plan-desc :deep(a), .cond :deep(a) { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
 
@@ -187,6 +189,7 @@ section { padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
 .blind-num { font-family: var(--font-mono); color: var(--warning); font-size: 13px; flex-shrink: 0; }
 .blind-row p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text-primary); }
 
-.rv-foot { padding: 32px 40px; display: flex; justify-content: space-between; border-top: 1px solid var(--border-subtle); max-width: 1200px; margin: 0 auto; }
+.rv-foot { padding: 48px 40px 72px; display: flex; justify-content: space-between; border-top: 1px solid var(--border-subtle); max-width: 1200px; margin: 0 auto; }
 .empty-wrap { padding: 120px 40px; display: flex; justify-content: center; }
+.eyebrow { font-size: 13px; color: var(--accent); font-weight: 500; margin: 0; letter-spacing: 0.02em; }
 </style>
