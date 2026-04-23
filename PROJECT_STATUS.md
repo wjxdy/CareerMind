@@ -258,7 +258,19 @@ Max Tokens: 2000
 
 ## 变更记录
 
-### 2026-04-22 ~ 2026-04-23
+### 2026-04-23 (P2 辩论可视化)
+**变更内容**: 完成 P2 阶段——3 张可视化图（温度条、观点演化、收敛图） + 后端图聚合 API + Agent 自报置信度
+**影响范围**: 后端 messages/rounds 表加 confidence/edge_type/divergence 字段；新增 GraphService + Controller + WebSocket graph_delta；前端新增 vis-network 依赖 + 5 个 viz 组件，挂载到 Discussion / TaskView / ResultView
+**详细说明**:
+1. DB schema：messages.edge_type / messages.confidence / rounds.divergence（V2 SQL + 实体字段，JPA `ddl-auto:update` 自动应用）
+2. Prompt 改造：所有轮次要求 Agent 末尾输出 `[confidence: 0.XX]`；Round 2 要求"我对/同意/支持 @某某"前缀以便边类型识别
+3. `MessageMetaParser` + `DivergenceCalculator` util；`GET /api/discussions/tasks/{id}/graph` 返回 nodes/edges/rounds/finalConvergence
+4. WebSocket 推送 `graph_delta`，前端 ThermoBar 实时反映共识度
+5. TaskView 决策树下方增加"观点演化"卡（vis-network），ResultView 摘要下方增加共识演化折线（ECharts）
+6. 8 个后端单测全过；E2E `viz-task.spec.js` 3 用例（条件断言）
+**状态**: ✅ 已完成，build + unit test 通过
+
+### 2026-04-22 ~ 2026-04-23 (P1 + Naive UI)
 **变更内容**: P1 品牌与 UI/UX 全面重做（计算机设计比赛冲刺，2 周 3 阶段的第 1 阶段）+ 组件库由 Element Plus 迁移到 Naive UI
 **影响范围**: 前端全量——设计 token + 15 个新组件（UI/Agent/Discussion 三个域）+ 9 个 View 重写 + 组件库更换
 **详细说明**:
