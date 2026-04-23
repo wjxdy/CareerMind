@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { message as ElMessage } from '@/utils/naive-discrete'
 import PageShell from '@/components/ui/PageShell.vue'
 import BrandLogo from '@/components/ui/BrandLogo.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'

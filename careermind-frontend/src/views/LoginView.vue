@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { message as ElMessage } from '@/utils/naive-discrete'
 import { useUserStore } from '@/stores/user'
 import BrandLogo from '@/components/ui/BrandLogo.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'

@@ -40,17 +40,9 @@
       <div v-if="userStore.user" class="sb-user" :title="userStore.user.username">
         <div class="u-avatar">{{ userStore.user.username.slice(0,1).toUpperCase() }}</div>
         <span v-if="!collapsed" class="u-name">{{ userStore.user.username }}</span>
-        <el-dropdown v-if="!collapsed" @command="handleCommand" trigger="click">
+        <n-dropdown v-if="!collapsed" :options="dropdownOptions" trigger="click" @select="handleCommand">
           <button class="u-more">⋯</button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="kb">知识库</el-dropdown-item>
-              <el-dropdown-item command="agents">Agent 管理</el-dropdown-item>
-              <el-dropdown-item command="settings">个人设置</el-dropdown-item>
-              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        </n-dropdown>
       </div>
       <BaseButton v-else variant="primary" size="sm" block @click="$router.push('/login')">
         {{ collapsed ? '→' : '登录 / 注册' }}
@@ -62,12 +54,21 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
+import { NDropdown } from 'naive-ui'
 import { useUserStore } from '@/stores/user'
 import { useTaskStore } from '@/stores/task'
 import BrandLogo from '@/components/ui/BrandLogo.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+
+const dropdownOptions = [
+  { label: '知识库', key: 'kb' },
+  { label: 'Agent 管理', key: 'agents' },
+  { label: '个人设置', key: 'settings' },
+  { type: 'divider' as const, key: 'd1' },
+  { label: '退出登录', key: 'logout' },
+]
 
 defineProps<{ collapsed?: boolean }>()
 defineEmits<{ (e: 'toggle'): void }>()

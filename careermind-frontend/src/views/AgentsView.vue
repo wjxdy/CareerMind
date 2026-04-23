@@ -31,43 +31,43 @@
         </div>
       </section>
 
-      <el-dialog v-model="showCreateDialog" :title="isEditing ? '编辑 Agent' : '创建 Agent'" width="600px">
-        <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
-          <el-form-item label="角色名称" prop="name">
-            <el-input v-model="form.name" placeholder="如：前大厂面试官、海归学姐" />
-          </el-form-item>
-          <el-form-item label="描述" prop="description">
-            <el-input v-model="form.description" type="textarea" :rows="2" placeholder="简要描述这个角色的特点" />
-          </el-form-item>
-          <el-form-item label="系统提示词" prop="systemPrompt">
-            <el-input v-model="form.systemPrompt" type="textarea" :rows="6" placeholder="定义角色的背景、立场、说话风格…" />
-          </el-form-item>
-          <el-form-item label="使用模型" prop="modelType">
-            <el-select v-model="form.modelType" class="w-full">
-              <el-option label="Kimi (Moonshot)" value="KIMI" />
-            </el-select>
-          </el-form-item>
-        </el-form>
+      <n-modal v-model:show="showCreateDialog" preset="card" :title="isEditing ? '编辑 Agent' : '创建 Agent'" :style="{ width: '600px' }" :mask-closable="false">
+        <n-form :model="form" :rules="rules" ref="formRef" label-placement="top">
+          <n-form-item label="角色名称" path="name">
+            <n-input v-model:value="form.name" placeholder="如：前大厂面试官、海归学姐" />
+          </n-form-item>
+          <n-form-item label="描述" path="description">
+            <n-input v-model:value="form.description" type="textarea" :rows="2" placeholder="简要描述这个角色的特点" />
+          </n-form-item>
+          <n-form-item label="系统提示词" path="systemPrompt">
+            <n-input v-model:value="form.systemPrompt" type="textarea" :rows="6" placeholder="定义角色的背景、立场、说话风格…" />
+          </n-form-item>
+          <n-form-item label="使用模型" path="modelType">
+            <n-select v-model:value="form.modelType" :options="modelOptions" />
+          </n-form-item>
+        </n-form>
         <template #footer>
-          <BaseButton variant="ghost" @click="showCreateDialog = false">取消</BaseButton>
-          <BaseButton variant="primary" :loading="submitting" @click="handleSubmit">
-            {{ isEditing ? '保存' : '创建' }}
-          </BaseButton>
+          <div class="dlg-foot">
+            <BaseButton variant="ghost" @click="showCreateDialog = false">取消</BaseButton>
+            <BaseButton variant="primary" :loading="submitting" @click="handleSubmit">
+              {{ isEditing ? '保存' : '创建' }}
+            </BaseButton>
+          </div>
         </template>
-      </el-dialog>
+      </n-modal>
     </div>
   </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import { NModal, NForm, NFormItem, NInput, NSelect, type FormInst, type FormRules } from 'naive-ui'
 import PageShell from '@/components/ui/PageShell.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import AgentCard from '@/components/agent/AgentCard.vue'
 import { useAgentStore } from '@/stores/agent'
+import { message, dialog } from '@/utils/naive-discrete'
 import type { Agent } from '@/types'
 
 const agentStore = useAgentStore()
@@ -78,8 +78,10 @@ const customAgents = computed(() => agentStore.availableAgents.filter(a => !a.is
 const showCreateDialog = ref(false)
 const isEditing = ref(false)
 const submitting = ref(false)
-const formRef = ref<FormInstance>()
+const formRef = ref<FormInst | null>(null)
 const editingId = ref<number | null>(null)
+
+const modelOptions = [{ label: 'Kimi (Moonshot)', value: 'KIMI' }]
 
 const form = reactive({
   name: '',
@@ -89,8 +91,8 @@ const form = reactive({
 })
 
 const rules: FormRules = {
-  name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
-  systemPrompt: [{ required: true, message: '请输入系统提示词', trigger: 'blur' }],
+  name:         [{ required: true, message: '请输入角色名称', trigger: ['blur', 'input'] }],
+  systemPrompt: [{ required: true, message: '请输入系统提示词', trigger: ['blur', 'input'] }],
 }
 
 onMounted(() => {
@@ -114,31 +116,28 @@ const handleEdit = (agent: Agent) => {
 }
 
 const handleDelete = async (agentId: number) => {
-  try {
-    await ElMessageBox.confirm('确定删除此 Agent？', '提示', { type: 'warning' })
-    await agentStore.deleteAgent(agentId)
-    ElMessage.success('已删除')
-  } catch { /* cancelled */ }
+  const ok = await dialog.confirm('删除此 Agent？', '删除后不可恢复。')
+  if (!ok) return
+  await agentStore.deleteAgent(agentId)
+  message.success('已删除')
 }
 
 const handleSubmit = async () => {
   if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    submitting.value = true
-    try {
-      if (isEditing.value && editingId.value) {
-        ElMessage.success('更新成功')
-      } else {
-        await agentStore.createAgent(form)
-        ElMessage.success('创建成功')
-      }
-      showCreateDialog.value = false
-      resetForm()
-    } finally {
-      submitting.value = false
+  try { await formRef.value.validate() } catch { return }
+  submitting.value = true
+  try {
+    if (isEditing.value && editingId.value) {
+      message.success('更新成功')
+    } else {
+      await agentStore.createAgent(form)
+      message.success('创建成功')
     }
-  })
+    showCreateDialog.value = false
+    resetForm()
+  } finally {
+    submitting.value = false
+  }
 }
 
 const resetForm = () => {
@@ -164,5 +163,6 @@ section { margin-bottom: 32px; }
 .empty-wrap { padding: 40px; background: var(--bg-card); border: 1px dashed var(--border-emphasis); border-radius: var(--radius-lg); }
 
 .card-actions { display: flex; justify-content: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle); width: 100%; }
-.w-full { width: 100%; }
+
+.dlg-foot { display: flex; justify-content: flex-end; gap: 8px; }
 </style>

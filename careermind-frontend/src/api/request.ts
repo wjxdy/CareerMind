@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+import { message as ElMessage } from '@/utils/naive-discrete'
 import type { ApiResponse } from '@/types'
 
 const request = axios.create({

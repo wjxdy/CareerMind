@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { message as ElMessage } from '@/utils/naive-discrete'
 import type { User } from '@/types'
 import { authApi } from '@/api/auth'
 

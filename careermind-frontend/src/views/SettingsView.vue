@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { message as ElMessage } from '@/utils/naive-discrete'
 import PageShell from '@/components/ui/PageShell.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'

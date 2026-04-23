@@ -9,50 +9,52 @@
         <BaseButton variant="primary" size="md" @click="openCreate">+ 新建咨询</BaseButton>
       </header>
 
-      <section class="my-tasks" v-loading="taskStore.loading">
+      <section class="my-tasks">
         <div class="filter-tabs">
           <button v-for="f in filters" :key="f.val" class="tab" :class="{ on: statusFilter === f.val }" @click="statusFilter = f.val">
             {{ f.label }}
           </button>
         </div>
 
-        <div v-if="filtered.length === 0" class="empty-box">
-          <EmptyState title="还没有咨询" description="点击右上角「新建咨询」开始" />
-        </div>
-        <div v-else class="tasks-grid">
-          <BaseCard v-for="t in filtered" :key="t.id" hoverable>
-            <div class="card-body" @click="goToTask(t.id)">
-              <div class="card-head">
-                <BaseBadge :tone="toneOfStatus(t.status)">{{ labelOfStatus(t.status) }}</BaseBadge>
-                <span class="date">{{ formatDate(t.createdAt) }}</span>
+        <n-spin :show="taskStore.loading">
+          <div v-if="filtered.length === 0 && !taskStore.loading" class="empty-box">
+            <EmptyState title="还没有咨询" description="点击右上角「新建咨询」开始" />
+          </div>
+          <div v-else class="tasks-grid">
+            <BaseCard v-for="t in filtered" :key="t.id" hoverable>
+              <div class="card-body" @click="goToTask(t.id)">
+                <div class="card-head">
+                  <BaseBadge :tone="toneOfStatus(t.status)">{{ labelOfStatus(t.status) }}</BaseBadge>
+                  <span class="date">{{ formatDate(t.createdAt) }}</span>
+                </div>
+                <h4 class="t-title">{{ t.title }}</h4>
+                <p class="t-goal">{{ (t.goal || '').slice(0, 100) }}</p>
+                <div class="t-meta">
+                  <AgentAvatarGroup v-if="t.agents?.length" :agents="t.agents.map(a => ({ id: a.id, type: a.type }))" :size="30" :max="5" />
+                  <button class="del-btn" @click.stop="handleDelete(t.id)" title="删除">×</button>
+                </div>
               </div>
-              <h4 class="t-title">{{ t.title }}</h4>
-              <p class="t-goal">{{ (t.goal || '').slice(0, 100) }}</p>
-              <div class="t-meta">
-                <AgentAvatarGroup v-if="t.agents?.length" :agents="t.agents.map(a => ({ id: a.id, type: a.type }))" :size="30" :max="5" />
-                <button class="del-btn" @click.stop="handleDelete(t.id)" title="删除">×</button>
-              </div>
-            </div>
-          </BaseCard>
-        </div>
+            </BaseCard>
+          </div>
+        </n-spin>
       </section>
     </div>
 
-    <el-dialog v-model="showCreateDialog" title="新建职业咨询" width="600px">
-      <el-form :model="createForm" :rules="rules" ref="formRef" label-position="top">
-        <el-form-item label="咨询主题" prop="title">
-          <el-input v-model="createForm.title" placeholder="给你的咨询起个标题" />
-        </el-form-item>
-        <el-form-item label="背景信息" prop="background">
-          <el-input v-model="createForm.background" type="textarea" :rows="3" placeholder="教育背景、工作经历等" />
-        </el-form-item>
-        <el-form-item label="目标 / 困惑" prop="goal">
-          <el-input v-model="createForm.goal" type="textarea" :rows="4" placeholder="详细描述你面临的职业选择或困惑" />
-        </el-form-item>
-        <el-form-item label="约束条件" prop="constraints">
-          <el-input v-model="createForm.constraints" type="textarea" :rows="2" placeholder="时间、资金、家庭等（可选）" />
-        </el-form-item>
-        <el-form-item label="选择专家" prop="agentIds">
+    <n-modal v-model:show="showCreateDialog" preset="card" title="新建职业咨询" :style="{ width: '600px' }" :mask-closable="false">
+      <n-form :model="createForm" :rules="rules" ref="formRef" label-placement="top" require-mark-placement="right-hanging">
+        <n-form-item label="咨询主题" path="title">
+          <n-input v-model:value="createForm.title" placeholder="给你的咨询起个标题" />
+        </n-form-item>
+        <n-form-item label="背景信息" path="background">
+          <n-input v-model:value="createForm.background" type="textarea" :rows="3" placeholder="教育背景、工作经历等" />
+        </n-form-item>
+        <n-form-item label="目标 / 困惑" path="goal">
+          <n-input v-model:value="createForm.goal" type="textarea" :rows="4" placeholder="详细描述你面临的职业选择或困惑" />
+        </n-form-item>
+        <n-form-item label="约束条件" path="constraints">
+          <n-input v-model:value="createForm.constraints" type="textarea" :rows="2" placeholder="时间、资金、家庭等（可选）" />
+        </n-form-item>
+        <n-form-item label="选择专家" path="agentIds">
           <div class="agent-selection">
             <label v-for="agent in agentStore.availableAgents" :key="agent.id"
                    class="agent-option" :class="{ selected: createForm.agentIds.includes(agent.id) }"
@@ -65,26 +67,25 @@
               <span v-if="createForm.agentIds.includes(agent.id)" class="check">✓</span>
             </label>
           </div>
-        </el-form-item>
-        <el-form-item label="关联知识库（可选）" prop="kbId">
-          <el-select v-model="createForm.kbId" placeholder="选择知识库为讨论提供背景资料" clearable style="width: 100%">
-            <el-option v-for="kb in kbList" :key="kb.id" :label="kb.name" :value="kb.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+        </n-form-item>
+        <n-form-item label="关联知识库（可选）" path="kbId">
+          <n-select v-model:value="createForm.kbId" :options="kbOptions" placeholder="选择知识库为讨论提供背景资料" clearable />
+        </n-form-item>
+      </n-form>
       <template #footer>
-        <BaseButton variant="ghost" @click="showCreateDialog = false">取消</BaseButton>
-        <BaseButton variant="primary" :loading="creating" @click="handleCreate">创建咨询</BaseButton>
+        <div class="dlg-foot">
+          <BaseButton variant="ghost" @click="showCreateDialog = false">取消</BaseButton>
+          <BaseButton variant="primary" :loading="creating" @click="handleCreate">创建咨询</BaseButton>
+        </div>
       </template>
-    </el-dialog>
+    </n-modal>
   </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import { NModal, NForm, NFormItem, NInput, NSelect, NSpin, type FormInst, type FormRules } from 'naive-ui'
 import PageShell from '@/components/ui/PageShell.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -95,6 +96,7 @@ import AgentAvatarGroup from '@/components/agent/AgentAvatarGroup.vue'
 import { useTaskStore } from '@/stores/task'
 import { useAgentStore } from '@/stores/agent'
 import { kbApi } from '@/api/kb'
+import { message, dialog } from '@/utils/naive-discrete'
 import type { KnowledgeBase } from '@/types/kb'
 import type { TaskStatus } from '@/types'
 import dayjs from 'dayjs'
@@ -117,8 +119,9 @@ const filtered = computed(() =>
 
 const showCreateDialog = ref(false)
 const creating = ref(false)
-const formRef = ref<FormInstance>()
+const formRef = ref<FormInst | null>(null)
 const kbList = ref<KnowledgeBase[]>([])
+const kbOptions = computed(() => kbList.value.map(k => ({ label: k.name, value: k.id })))
 
 const createForm = reactive({
   title: localStorage.getItem('tempQuestion')?.slice(0, 6) || '',
@@ -130,9 +133,15 @@ const createForm = reactive({
 })
 
 const rules: FormRules = {
-  title: [{ required: true, message: '请输入咨询主题', trigger: 'blur' }],
-  goal: [{ required: true, message: '请描述你的目标或困惑', trigger: 'blur' }],
-  agentIds: [{ required: true, message: '请至少选择一位专家', trigger: 'change', type: 'array' }],
+  title: [{ required: true, message: '请输入咨询主题', trigger: ['blur', 'input'] }],
+  goal: [{ required: true, message: '请描述你的目标或困惑', trigger: ['blur', 'input'] }],
+  agentIds: [{
+    type: 'array' as const,
+    required: true,
+    validator: (_rule: any, value: number[]) =>
+      Array.isArray(value) && value.length > 0 ? true : new Error('请至少选择一位专家'),
+    trigger: ['change'],
+  }],
 }
 
 watch(() => createForm.goal, (newGoal) => {
@@ -162,29 +171,28 @@ const toggleAgent = (agentId: number) => {
 
 const handleCreate = async () => {
   if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    creating.value = true
-    try {
-      const task = await taskStore.createTask(createForm)
-      ElMessage.success('创建成功')
-      showCreateDialog.value = false
-      localStorage.removeItem('tempQuestion')
-      router.push(`/discussions/${task.id}`)
-    } finally {
-      creating.value = false
-    }
-  })
+  try {
+    await formRef.value.validate()
+  } catch { return }
+  creating.value = true
+  try {
+    const task = await taskStore.createTask(createForm)
+    message.success('创建成功')
+    showCreateDialog.value = false
+    localStorage.removeItem('tempQuestion')
+    router.push(`/discussions/${task.id}`)
+  } finally {
+    creating.value = false
+  }
 }
 
 const goToTask = (id: number) => router.push(`/discussions/${id}`)
 
 const handleDelete = async (id: number) => {
-  try {
-    await ElMessageBox.confirm('确定删除此咨询？', '提示', { type: 'warning' })
-    await taskStore.deleteTask(id)
-    ElMessage.success('已删除')
-  } catch { /* cancelled */ }
+  const ok = await dialog.confirm('删除此咨询？', '删除后不可恢复。')
+  if (!ok) return
+  await taskStore.deleteTask(id)
+  message.success('已删除')
 }
 
 const toneOfStatus = (s: TaskStatus) => ({
@@ -225,7 +233,7 @@ onMounted(() => {
 
 .empty-box { padding: 48px; background: var(--bg-card); border: 1px dashed var(--border-emphasis); border-radius: var(--radius-lg); }
 
-.agent-selection { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+.agent-selection { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; width: 100%; }
 .agent-option {
   display: flex; align-items: center; gap: 12px; padding: 10px;
   border-radius: var(--radius-md); cursor: pointer;
@@ -237,4 +245,6 @@ onMounted(() => {
 .agent-name { font-weight: 500; color: var(--text-primary); font-size: 13px; }
 .agent-desc { font-size: 12px; color: var(--text-secondary); }
 .check { color: var(--agent); font-weight: 700; }
+
+.dlg-foot { display: flex; justify-content: flex-end; gap: 8px; }
 </style>

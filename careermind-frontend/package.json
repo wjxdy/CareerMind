@@ -8,13 +8,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.3.1",
     "@vueuse/motion": "^2.2.6",
     "axios": "^1.6.5",
     "dayjs": "^1.11.10",
     "echarts": "^5.4.3",
-    "element-plus": "^2.5.1",
     "marked": "^11.1.1",
+    "naive-ui": "^2.44.1",
     "pinia": "^2.1.7",
     "vue": "^3.4.15",
     "vue-echarts": "^6.6.8",

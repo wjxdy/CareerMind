@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { message as ElMessage } from '@/utils/naive-discrete'
 import RoundtableStage from './RoundtableStage.vue'
 import MessageDrawer from './MessageDrawer.vue'
 import DiscussionControl from './DiscussionControl.vue'
