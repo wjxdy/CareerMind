@@ -258,6 +258,20 @@ Max Tokens: 2000
 
 ## 变更记录
 
+### 2026-04-23 (P3 PDF 决策报告)
+**变更内容**: 完成 P3 阶段——PDF 报告导出（封面/摘要/问题/4 轮/方案对比/盲区/行动清单/封底）
+**影响范围**: 后端 ReportService + ReportController + LLM 摘要/行动清单生成；前端 ReportPrintView 路由 + 8 个 report 子组件 + html2pdf.js 导出
+**详细说明**:
+1. 后端 `GET /api/reports/{taskId}` 聚合 task/discussion/rounds/graph/mergeResult/extras
+2. `MergeService.generateExecutiveSummary` 调 LLM 出 200 字摘要；`generateActionPlan` 解析 7/30/90 天 JSON
+3. extras 缓存到 Redis（24h TTL），可 `?refresh=true` 强制重算
+4. 前端 `/report/print/:taskId` 独立打印视图，无 Sidebar，支持「打印」与「下载 PDF」（html2pdf.js）
+5. 8 个 report 子组件：Cover/ExecutiveSummary/Problem/RoundSummary/PlansComparison/BlindSpots/ActionPlan/Back
+6. ResultView「导出 PDF 报告」按钮新窗口打开打印视图
+7. print.css：A4 纸张、`page-break` / `page-break-avoid` 控制分页
+8. E2E：`e2e-tests/tests/report.spec.js`
+**状态**: ✅ 已完成，build 通过。手动跑一次完整报告流程后即可入库截图素材
+
 ### 2026-04-23 (P2 辩论可视化)
 **变更内容**: 完成 P2 阶段——3 张可视化图（温度条、观点演化、收敛图） + 后端图聚合 API + Agent 自报置信度
 **影响范围**: 后端 messages/rounds 表加 confidence/edge_type/divergence 字段；新增 GraphService + Controller + WebSocket graph_delta；前端新增 vis-network 依赖 + 5 个 viz 组件，挂载到 Discussion / TaskView / ResultView

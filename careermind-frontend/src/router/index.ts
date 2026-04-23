@@ -59,6 +59,12 @@ const router = createRouter({
       component: () => import('@/views/KbView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/report/print/:taskId',
+      name: 'ReportPrint',
+      component: () => import('@/views/ReportPrintView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

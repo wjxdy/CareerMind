@@ -123,7 +123,10 @@ const handleGenerate = async () => {
   }
 }
 
-const onExport = () => ElMessage.info('PDF 导出将在 P3 阶段可用')
+const onExport = () => {
+  const url = window.location.origin + `/report/print/${taskId.value}`
+  window.open(url, '_blank')
+}
 </script>
 
 <style scoped>

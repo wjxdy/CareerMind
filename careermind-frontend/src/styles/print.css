@@ -1,0 +1,12 @@
+@page { size: A4; margin: 16mm 14mm; }
+
+@media print {
+  body { background: #ffffff !important; }
+  .no-print { display: none !important; }
+  .page-break { page-break-before: always; break-before: page; }
+  .page-break-avoid { break-inside: avoid; page-break-inside: avoid; }
+  html[data-theme="dark"] body {
+    background: #ffffff !important;
+    color: #09090B !important;
+  }
+}
