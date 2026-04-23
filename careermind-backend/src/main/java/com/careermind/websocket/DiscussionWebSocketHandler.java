@@ -57,6 +57,14 @@ public class DiscussionWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    public void sendGraphDelta(Long taskId, int roundNumber, double divergence) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("type", "graph_delta");
+        payload.put("roundNumber", roundNumber);
+        payload.put("divergence", divergence);
+        sendToTask(taskId, payload);
+    }
+
     public void sendMessageToTask(Long taskId, MessageDto messageDto) {
         WebSocketSession session = taskSessions.get(taskId);
         if (session != null && session.isOpen()) {

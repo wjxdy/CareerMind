@@ -250,8 +250,19 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                         discussionId, currentRound).orElse(null);
                 if (round != null) {
                     round.setIsCompleted(true);
+                    // P2: 计算并持久化 divergence
+                    java.util.List<Message> rmsgs = messageRepository.findByRoundIdOrderByCreatedAtAsc(round.getId());
+                    java.math.BigDecimal divergence = com.careermind.util.DivergenceCalculator.compute(rmsgs);
+                    round.setDivergence(divergence);
                     roundRepository.save(round);
-                    log.info("第{}轮讨论完成", currentRound);
+                    log.info("第{}轮讨论完成，divergence={}", currentRound, divergence);
+
+                    // 推送图增量
+                    try {
+                        webSocketHandler.sendGraphDelta(taskId, currentRound, divergence.doubleValue());
+                    } catch (Exception ex) {
+                        log.warn("sendGraphDelta 失败: {}", ex.getMessage());
+                    }
                 }
                 return null;
             });
@@ -326,14 +337,22 @@ public class DiscussionEngineImpl implements DiscussionEngine {
             String fullContent = contentBuilder.toString();
             log.info("[processAgentMessageStream] Agent {} 流式生成完成，内容长度: {}", agent.getName(), fullContent.length());
 
+            // P2: 解析 confidence 与 edgeType
+            java.math.BigDecimal confidence = com.careermind.util.MessageMetaParser.parseConfidence(fullContent)
+                    .orElse(java.math.BigDecimal.valueOf(0.6));
+            String edgeType = com.careermind.util.MessageMetaParser.inferEdgeType(currentRound, fullContent);
+
             Message message = Message.builder()
                     .round(finalRound)
                     .agent(agent)
                     .content(fullContent)
                     .isFinal(finalRound.getRoundType() == RoundType.FINAL)
+                    .confidence(confidence)
+                    .edgeType(edgeType)
                     .build();
             Message savedMessage = messageRepository.save(message);
-            log.info("[processAgentMessageStream] Agent {} 消息已保存到数据库, ID: {}", agent.getName(), savedMessage.getId());
+            log.info("[processAgentMessageStream] Agent {} 消息已保存, ID: {}, confidence: {}, edgeType: {}",
+                    agent.getName(), savedMessage.getId(), confidence, edgeType);
 
             webSocketHandler.sendStreamEnd(taskId, savedMessage.getId());
         });
@@ -497,6 +516,13 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                 prompt.append("3. ...\n");
                 prompt.append("风险提示：...\n");
             }
+        }
+
+        // P2: 自报置信度，便于辩论可视化
+        prompt.append("\n=== 置信度要求（重要） ===\n");
+        prompt.append("请在你的回复最后一行单独输出 [confidence: X.XX]，X.XX 是 0.00-1.00 的小数，表示你对本轮观点的信心。\n");
+        if (roundType == RoundType.CHALLENGE) {
+            prompt.append("如果你明确质疑某位同事，请在开头使用 \"我对 @某某 的观点有异议：…\" 这样的格式；如果你支持/同意/补充某位同事的观点，请在开头使用 \"我同意/支持/补充 @某某：…\"。\n");
         }
 
         return prompt.toString();

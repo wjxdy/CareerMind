@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -43,6 +44,12 @@ public class Message {
     @Column(name = "is_final")
     @Builder.Default
     private Boolean isFinal = false;  // 是否是最终观点
+
+    @Column(name = "edge_type", length = 16)
+    private String edgeType;  // SUPPORT/CHALLENGE/REVISE; null = independent
+
+    @Column(name = "confidence", precision = 3, scale = 2)
+    private BigDecimal confidence;  // 0.00-1.00
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

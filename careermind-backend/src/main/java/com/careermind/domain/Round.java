@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -37,6 +38,9 @@ public class Round {
     @Column(name = "is_completed")
     @Builder.Default
     private Boolean isCompleted = false;
+
+    @Column(name = "divergence", precision = 3, scale = 2)
+    private BigDecimal divergence;  // 0.00-1.00
 
     @OneToMany(mappedBy = "round", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Message> messages;
