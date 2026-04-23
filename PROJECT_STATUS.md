@@ -258,6 +258,15 @@ Max Tokens: 2000
 
 ## 变更记录
 
+### 2026-04-23 (UI 三 Bug 修复)
+**变更内容**: 修复用户反馈的三个 UI 问题
+**影响范围**: 前端 Sidebar.vue、PageShell.vue、ResultView.vue、RoundtableStage.vue
+**详细说明**:
+1. **侧边栏收起后无法恢复**: Sidebar.vue 原先有 `.sidebar.collapsed .collapse-btn { display: none }` 直接隐藏展开按钮。改为保留按钮,`.sb-head` 在收起态改为纵向堆叠(logo 上、按钮下)。PageShell.vue 追加 `Cmd/Ctrl+B` 快捷键兜底
+2. **候选方案置信度"8000%"与蓝色横线穿透卡片**: 根因是后端 confidence 可能已为 0-100 标度,前端仍 `*100` → 变成 8000%,叠加 `.conf-bar::after` 无 `overflow: hidden`,宽度 8000% 横贯整个网格。新增 `toPercent()` 兼容双标度 + 钳位到 [0,100];`.conf-bar` 加 `overflow: hidden`、`::after` 加 `max-width: 100%` 与 `transition`;数字加 `tabular-nums` 防抖
+3. **Agent 发言气泡顶部座位被遮挡**: RoundtableStage 顶部座位(y=12%/32%)的 `.seat-bubble` 固定向上浮(`bottom: calc(100% + 12px)`)超出舞台边界被截断。新增 `bubbleDir(i)` 依据座位 y 坐标切换 `.above`/`.below`;下浮变体 `:deep(.bubble-tail)` 翻转边框方向
+**状态**: ✅ 已完成,`npm run build` 通过
+
 ### 2026-04-23 (P3 PDF 决策报告)
 **变更内容**: 完成 P3 阶段——PDF 报告导出（封面/摘要/问题/4 轮/方案对比/盲区/行动清单/封底）
 **影响范围**: 后端 ReportService + ReportController + LLM 摘要/行动清单生成；前端 ReportPrintView 路由 + 8 个 report 子组件 + html2pdf.js 导出

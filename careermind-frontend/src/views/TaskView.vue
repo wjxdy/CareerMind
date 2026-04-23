@@ -23,14 +23,9 @@
       </BaseCard>
 
       <BaseCard class="tv-card">
-        <template #header>决策链路</template>
-        <DecisionTree :task="task" :discussion="discussion" :merge-result="mergeResult" />
-      </BaseCard>
-
-      <BaseCard class="tv-card">
         <template #header>
           <div class="tab-head">
-            <span>观点演化</span>
+            <span>观点演化图</span>
             <VizLegend />
           </div>
         </template>
@@ -48,33 +43,21 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import AgentAvatarGroup from '@/components/agent/AgentAvatarGroup.vue'
-import DecisionTree from '@/components/task/DecisionTree.vue'
 import OpinionGraph from '@/components/viz/OpinionGraph.vue'
 import VizLegend from '@/components/viz/VizLegend.vue'
 import { taskApi } from '@/api/task'
-import { discussionApi } from '@/api/discussion'
-import { mergeApi } from '@/api/merge'
 import { graphApi } from '@/api/graph'
-import type { Task, Discussion, MergeResult, TaskStatus } from '@/types'
+import type { Task, TaskStatus } from '@/types'
 import type { GraphResponse } from '@/types/graph'
 
 const route = useRoute()
 const taskId = computed(() => Number(route.params.id))
 const task = ref<Task | null>(null)
-const discussion = ref<Discussion | null>(null)
-const mergeResult = ref<MergeResult | null>(null)
 const graph = ref<GraphResponse | null>(null)
 
 const load = async () => {
   task.value = await taskApi.getTaskById(taskId.value)
-  const [disc, merge, gr] = await Promise.allSettled([
-    discussionApi.getDiscussion(taskId.value),
-    mergeApi.getMergeResult(taskId.value),
-    graphApi.getGraph(taskId.value),
-  ])
-  discussion.value = disc.status === 'fulfilled' ? (disc.value as Discussion) : null
-  mergeResult.value = merge.status === 'fulfilled' ? (merge.value as MergeResult | null) : null
-  graph.value = gr.status === 'fulfilled' ? (gr.value as GraphResponse) : null
+  try { graph.value = await graphApi.getGraph(taskId.value) } catch { graph.value = null }
 }
 onMounted(load)
 watch(taskId, load)

@@ -19,7 +19,11 @@
       />
       <span class="seat-name" :data-agent-type="slot.type">{{ slot.name }}</span>
 
-      <div v-if="slot.agentId === currentSpeakerAgentId && streamingContent" class="seat-bubble">
+      <div
+        v-if="slot.agentId === currentSpeakerAgentId && streamingContent"
+        class="seat-bubble"
+        :class="bubbleDir(i)"
+      >
         <SpeechBubble :agent-type="slot.type" :content="streamingContent" is-streaming />
       </div>
     </div>
@@ -65,6 +69,9 @@ const seatStyle = (i: number) => {
   const p = positions[i] || positions[0]
   return { left: p.x + '%', top: p.y + '%', transform: 'translate(-50%,-50%)' }
 }
+
+// 顶部座位(y < 50%)的气泡显示在头像下方,下排座位保持在上方,避免被舞台边界或顶栏遮挡
+const bubbleDir = (i: number) => (positions[i] && positions[i].y < 50 ? 'below' : 'above')
 
 const stateFor = (agentId: number): 'idle' | 'listening' | 'speaking' | 'challenging' => {
   if (props.currentSpeakerAgentId == null) return 'idle'
@@ -124,9 +131,14 @@ onUpdated(measure)
 .seat { position: absolute; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .seat-name { font-size: 12px; font-weight: 500; color: var(--agent); background: var(--agent-dim); padding: 2px 10px; border-radius: var(--radius-full); white-space: nowrap; }
 .seat-bubble {
-  position: absolute; bottom: calc(100% + 12px); left: 50%;
+  position: absolute; left: 50%;
   transform: translateX(-50%); z-index: 4;
   width: 300px;
+  max-width: min(300px, calc(50vw - 60px));
   pointer-events: none;
 }
+.seat-bubble.above { bottom: calc(100% + 12px); }
+.seat-bubble.below { top:    calc(100% + 12px); }
+/* 下浮时气泡尾巴翻转到顶部 */
+.seat-bubble.below :deep(.bubble-tail) { top: auto; bottom: -6px; border-left: none; border-top: none; border-right: 1px solid var(--agent); border-bottom: 1px solid var(--agent); }
 </style>

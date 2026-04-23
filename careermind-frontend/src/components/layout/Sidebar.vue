@@ -116,9 +116,10 @@ const handleCommand = (cmd: string) => {
   width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
   background: transparent; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
   color: var(--text-muted); cursor: pointer;
+  flex-shrink: 0;
 }
 .collapse-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
-.sidebar.collapsed .collapse-btn { display: none; }
+.sidebar.collapsed .sb-head { flex-direction: column; gap: 10px; padding: 14px 8px 8px; }
 
 .sb-cta { padding: 8px 12px 12px; }
 

@@ -6,10 +6,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
 const collapsed = ref(localStorage.getItem('cm-sidebar-collapsed') === '1')
 watch(collapsed, v => localStorage.setItem('cm-sidebar-collapsed', v ? '1' : '0'))
+
+const onKeydown = (e: KeyboardEvent) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+    e.preventDefault()
+    collapsed.value = !collapsed.value
+  }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>

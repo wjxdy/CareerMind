@@ -5,7 +5,7 @@
         <BrandLogo size="sm" />
         <h1>你的职业决策</h1>
         <div class="banner-stats">
-          <div class="stat"><span class="num">{{ Math.round(mergeResult.convergenceRate * 100) }}%</span><span class="lbl">共识度</span></div>
+          <div class="stat"><span class="num">{{ toPercent(mergeResult.convergenceRate) }}%</span><span class="lbl">共识度</span></div>
           <div class="stat"><span class="num">{{ mergeResult.plans.length }}</span><span class="lbl">候选方案</span></div>
           <div class="stat"><span class="num">{{ mergeResult.blindSpots.length }}</span><span class="lbl">认知盲区</span></div>
         </div>
@@ -30,8 +30,8 @@
             <div class="plan-head">
               <BaseBadge tone="accent">方案 {{ i + 1 }}</BaseBadge>
               <div class="conf">
-                <div class="conf-bar" :style="{ '--w': Math.round(p.confidence*100) + '%' } as any" />
-                <span>{{ Math.round(p.confidence * 100) }}%</span>
+                <div class="conf-bar" :style="{ '--w': toPercent(p.confidence) + '%' } as any" />
+                <span class="conf-num">{{ toPercent(p.confidence) }}%</span>
               </div>
             </div>
             <h3 class="plan-title">{{ p.title }}</h3>
@@ -119,6 +119,14 @@ const stripNoise = (s: string) =>
 const displaySummary = computed(() =>
   mergeResult.value?.summary ? stripNoise(mergeResult.value.summary) : ''
 )
+
+// 兼容后端返回 0-1 或 0-100 两种置信度标度,始终钳在 [0,100] 并取整
+const toPercent = (v: number | undefined | null): number => {
+  if (v == null || Number.isNaN(v)) return 0
+  const n = Math.abs(v)
+  const pct = n > 1.5 ? n : n * 100
+  return Math.max(0, Math.min(100, Math.round(pct)))
+}
 onMounted(load)
 watch(taskId, load)
 
@@ -164,8 +172,9 @@ section { padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
 .selected { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent); }
 .plan-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .conf { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
-.conf-bar { width: 60px; height: 4px; background: var(--accent-dim); border-radius: 9999px; position: relative; }
-.conf-bar::after { content: ''; position: absolute; left: 0; top: 0; height: 100%; background: var(--accent); border-radius: 9999px; width: var(--w, 0); }
+.conf-bar { width: 60px; height: 4px; background: var(--accent-dim); border-radius: 9999px; position: relative; overflow: hidden; flex-shrink: 0; }
+.conf-bar::after { content: ''; position: absolute; left: 0; top: 0; height: 100%; background: var(--accent); border-radius: 9999px; width: var(--w, 0); max-width: 100%; transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1); }
+.conf-num { font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
 .plan-title { font-size: 16px; margin: 0 0 6px; }
 .plan-desc  { font-size: 13px; color: var(--text-secondary); margin: 0 0 14px; line-height: 1.6; }
 .plan-section { margin-top: 12px; }

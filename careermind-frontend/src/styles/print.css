@@ -3,10 +3,36 @@
 @media print {
   body { background: #ffffff !important; }
   .no-print { display: none !important; }
-  .page-break { page-break-before: always; break-before: page; }
-  .page-break-avoid { break-inside: avoid; page-break-inside: avoid; }
   html[data-theme="dark"] body {
     background: #ffffff !important;
     color: #09090B !important;
   }
 }
+
+/* 对 html2pdf 与浏览器打印都生效的分页规则（不局限在 @media print，因为 html2pdf 渲染时并不触发 print media） */
+.page-break,
+.pdf-break-before {
+  break-before: page;
+  page-break-before: always;
+}
+
+.page-break-avoid,
+.round,
+.agent-row,
+.plan,
+.col,
+.blind-row,
+.r-head,
+.bubble,
+h1, h2, h3, h4, h5 {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+p {
+  orphans: 3;
+  widows: 3;
+}
+
+/* html2pdf 内部 tail 避免被切 */
+.bubble-tail { break-inside: avoid; page-break-inside: avoid; }
