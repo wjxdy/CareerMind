@@ -38,6 +38,18 @@ public class LLMGatewayImpl {
     /**
      * 生成Agent发言内容（同步版本）
      */
+    /**
+     * 通用单次调用：用于报告生成、行动清单等无需 Agent 上下文的纯 prompt 场景。
+     */
+    public String generateText(String prompt) {
+        String provider = "kimi";
+        if (hasApiKey(provider)) {
+            return callLLMAPI(provider, "You are a concise career consulting assistant.", prompt);
+        }
+        log.warn("未配置 {} API Key，generateText 返回空字符串", provider);
+        return "";
+    }
+
     public String generateAgentResponse(Agent agent, String context) {
         String provider = getProviderForAgent(agent);
 

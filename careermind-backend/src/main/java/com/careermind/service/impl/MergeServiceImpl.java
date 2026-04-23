@@ -315,4 +315,73 @@ public class MergeServiceImpl implements MergeService {
         return Arrays.asList(json.replace("[", "").replace("]", "")
                 .replace("\"", "").split(","));
     }
+
+    // ============== P3 ==============
+
+    @Override
+    public String generateExecutiveSummary(Long taskId) {
+        Discussion d = discussionRepository.findByTaskId(taskId).orElse(null);
+        if (d == null) return "";
+
+        StringBuilder digest = new StringBuilder();
+        for (Round r : roundRepository.findByDiscussionIdOrderByRoundNumberAsc(d.getId())) {
+            for (Message m : messageRepository.findByRoundIdOrderByCreatedAtAsc(r.getId())) {
+                if (m.getAgent() == null) continue;
+                digest.append("【").append(m.getAgent().getName()).append("】 ");
+                String c = com.careermind.util.MessageMetaParser.stripConfidence(m.getContent());
+                if (c == null) c = "";
+                digest.append(c.substring(0, Math.min(120, c.length())));
+                digest.append("\n");
+            }
+        }
+
+        String prompt = "以下是一次多 Agent 职业决策讨论的全量记录。请以第三人视角写一段不超过 200 字的执行摘要，"
+                + "结构：用户的核心问题 + 主要分歧点 + 最终建议 + 置信度。语言客观、简洁，不要使用'我'。\n\n"
+                + "【讨论记录】\n" + digest;
+
+        try {
+            String text = llmGateway.generateText(prompt);
+            if (text == null || text.isBlank()) {
+                return "讨论已完成，五位 AI 专家从行业、能力、风险、机会、价值五个维度进行了 4 轮辩论，最终汇总为候选方案。";
+            }
+            return text.trim();
+        } catch (Exception e) {
+            log.warn("生成执行摘要失败: {}", e.getMessage());
+            return "讨论已完成，五位 AI 专家从行业、能力、风险、机会、价值五个维度进行了 4 轮辩论，最终汇总为候选方案。";
+        }
+    }
+
+    @Override
+    public ActionPlanDto generateActionPlan(Long taskId) {
+        ActionPlanDto fallback = new ActionPlanDto();
+        fallback.setDay7(new ArrayList<>());
+        fallback.setDay30(new ArrayList<>());
+        fallback.setDay90(new ArrayList<>());
+
+        MergeResult mr = mergeResultRepository.findByTaskId(taskId).orElse(null);
+        if (mr == null || mr.getPlans() == null || mr.getPlans().isEmpty()) return fallback;
+
+        Plan selected = mr.getPlans().stream()
+                .filter(p -> Boolean.TRUE.equals(p.getIsSelected()))
+                .findFirst()
+                .orElse(mr.getPlans().get(0));
+
+        String prompt = "基于以下选定方案，输出未来 7/30/90 天的行动清单。要求严格 JSON 格式：\n"
+                + "{ \"day7\": [\"...\",\"...\"], \"day30\": [\"...\"], \"day90\": [\"...\"] }\n"
+                + "每时段 3-5 条，每条不超过 30 字，可执行、可验证。只返回 JSON，不要任何额外文字或代码块标记。\n\n"
+                + "【选定方案】\n标题：" + selected.getTitle()
+                + "\n描述：" + selected.getDescription();
+
+        try {
+            String raw = llmGateway.generateText(prompt);
+            if (raw == null || raw.isBlank()) return fallback;
+            int s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+            if (s < 0 || e <= s) return fallback;
+            String json = raw.substring(s, e + 1);
+            return objectMapper.readValue(json, ActionPlanDto.class);
+        } catch (Exception ex) {
+            log.warn("生成行动清单失败: {}", ex.getMessage());
+            return fallback;
+        }
+    }
 }
