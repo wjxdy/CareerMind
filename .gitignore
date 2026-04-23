@@ -62,3 +62,4 @@ __pycache__/
 .claude/
 .worktrees/
 node_modules/
+careermind-backend-*.jar
