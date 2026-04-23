@@ -11,10 +11,10 @@
         </div>
       </header>
 
-      <section v-if="mergeResult.summary">
+      <section v-if="displaySummary">
         <h2 class="sec-title">整合总结</h2>
         <BaseCard>
-          <p class="summary-text">{{ mergeResult.summary }}</p>
+          <p class="summary-text">{{ displaySummary }}</p>
         </BaseCard>
       </section>
 
@@ -108,6 +108,17 @@ const load = async () => {
   catch { graph.value = null }
   finally { loading.value = false }
 }
+
+// 清理 LLM 偶发输出的 URL / [confidence:...] 标签
+const stripNoise = (s: string) =>
+  s.replace(/https?:\/\/\S+/g, '')
+   .replace(/\[confidence:\s*\d(?:\.\d+)?\]/gi, '')
+   .replace(/\n{3,}/g, '\n\n')
+   .trim()
+
+const displaySummary = computed(() =>
+  mergeResult.value?.summary ? stripNoise(mergeResult.value.summary) : ''
+)
 onMounted(load)
 watch(taskId, load)
 
@@ -146,7 +157,8 @@ const onExport = () => {
 
 section { padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
 .sec-title { font-size: 18px; margin: 0 0 16px; }
-.summary-text { margin: 0; font-size: 14px; line-height: 1.7; color: var(--text-primary); }
+.summary-text { margin: 0; font-size: 14px; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
+.summary-text :deep(a), .plan-desc :deep(a), .cond :deep(a) { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
 
 .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
 .selected { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent); }

@@ -45,7 +45,7 @@ watch(messageCount, async () => { await nextTick(); if (bodyRef.value) bodyRef.v
 
 <style scoped>
 .msg-drawer { position: relative; width: 48px; background: var(--bg-card); border-left: 1px solid var(--border-subtle); transition: width var(--duration-base) var(--ease-standard); flex-shrink: 0; }
-.msg-drawer.open { width: 360px; }
+.msg-drawer.open { width: 440px; }
 
 .drawer-toggle {
   position: absolute; top: 16px; left: 8px; z-index: 2;

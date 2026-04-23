@@ -64,6 +64,7 @@ const formatted = computed(() => marked(props.message.content || ''))
 .msg-content :deep(p) { margin: 4px 0; }
 .msg-content :deep(ul), .msg-content :deep(ol) { margin: 6px 0; padding-left: 18px; }
 .msg-content :deep(strong) { color: var(--text-primary); }
+.msg-content :deep(a) { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
 
 @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 </style>

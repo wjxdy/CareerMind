@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{
   content: string
   isStreaming?: boolean
   maxChars?: number
-}>(), { maxChars: 90 })
+}>(), { maxChars: 140 })
 const truncated = computed(() => {
   const t = (props.content || '').trim()
   return t.length > props.maxChars ? t.slice(0, props.maxChars) + '…' : t
@@ -23,7 +23,7 @@ const truncated = computed(() => {
 </script>
 
 <style scoped>
-.bubble { position: relative; max-width: 260px; animation: pop var(--duration-base) var(--ease-emphasized); }
+.bubble { position: relative; max-width: 320px; animation: pop var(--duration-base) var(--ease-emphasized); }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .bubble-content {
   background: var(--bg-card); border: 1px solid var(--agent);
