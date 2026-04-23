@@ -18,6 +18,11 @@
         </BaseCard>
       </section>
 
+      <section v-if="graph">
+        <h2 class="sec-title">共识演化</h2>
+        <ConvergenceChart :graph="graph" />
+      </section>
+
       <section>
         <h2 class="sec-title">候选方案</h2>
         <div class="plans-grid">
@@ -82,12 +87,16 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import ConvergenceChart from '@/components/viz/ConvergenceChart.vue'
 import { mergeApi } from '@/api/merge'
+import { graphApi } from '@/api/graph'
 import type { MergeResult } from '@/types'
+import type { GraphResponse } from '@/types/graph'
 
 const route = useRoute()
 const taskId = computed(() => Number(route.params.taskId))
 const mergeResult = ref<MergeResult | null>(null)
+const graph = ref<GraphResponse | null>(null)
 const loading = ref(true)
 const generating = ref(false)
 
@@ -95,6 +104,8 @@ const load = async () => {
   loading.value = true
   try { mergeResult.value = await mergeApi.getMergeResult(taskId.value) }
   catch { mergeResult.value = null }
+  try { graph.value = await graphApi.getGraph(taskId.value) }
+  catch { graph.value = null }
   finally { loading.value = false }
 }
 onMounted(load)

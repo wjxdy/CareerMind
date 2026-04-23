@@ -30,6 +30,9 @@
           <BaseButton variant="primary" size="lg" @click="handleStart">▶ 开始讨论</BaseButton>
           <p class="overlay-hint">5 位 AI 专家将进行 4 轮辩论</p>
         </div>
+        <div class="thermo-slot">
+          <ThermoBar :divergence="currentDivergence" :delta-text="deltaText" />
+        </div>
       </div>
       <MessageDrawer v-model:open="drawerOpen" :rounds="discussion?.rounds || []" :streaming-message="streamingMessage" />
     </div>
@@ -55,6 +58,7 @@ import RoundtableStage from './RoundtableStage.vue'
 import MessageDrawer from './MessageDrawer.vue'
 import DiscussionControl from './DiscussionControl.vue'
 import RoundTimeline from './RoundTimeline.vue'
+import ThermoBar from './ThermoBar.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import { taskApi } from '@/api/task'
@@ -70,6 +74,8 @@ const drawerOpen = ref(false)
 const streamingMessage = ref<Message | null>(null)
 const streamingContent = ref('')
 const latestChallenge = ref<{ fromAgentId: number; toAgentId: number; triggerAt: number } | null>(null)
+const currentDivergence = ref(0.5)
+const deltaText = ref<string | null>(null)
 let ws: WebSocket | null = null
 
 const hasDiscussion = computed(() => !!discussion.value && (discussion.value.rounds.length > 0 || discussion.value.isActive))
@@ -123,6 +129,13 @@ const connect = () => {
         break
       case 'result_stream_end':
         ElMessage.success('结果已生成'); break
+      case 'graph_delta':
+        if (typeof d.divergence === 'number') {
+          currentDivergence.value = d.divergence
+          deltaText.value = `第 ${d.roundNumber} 轮 共识度 ${Math.round((1 - d.divergence) * 100)}%`
+          setTimeout(() => (deltaText.value = null), 1500)
+        }
+        break
     }
   }
 }
@@ -166,6 +179,7 @@ const goResult = () => router.push(`/results/${props.taskId}`)
 }
 html[data-theme="dark"] .stage-overlay { background: rgba(9,9,11,0.4); }
 .overlay-hint { font-size: 13px; color: var(--text-muted); margin: 0; }
+.thermo-slot { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; }
 
 .panel-foot {
   display: flex; align-items: center; gap: 12px;
