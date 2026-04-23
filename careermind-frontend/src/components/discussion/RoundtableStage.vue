@@ -94,7 +94,7 @@ onUpdated(measure)
 </script>
 
 <style scoped>
-.stage { position: relative; width: 100%; height: 100%; min-height: 520px; overflow: hidden; background: var(--bg-page); }
+.stage { position: relative; width: 100%; height: 100%; min-height: 520px; background: var(--bg-page); }
 .grid-bg {
   position: absolute; inset: 0;
   background-image:
@@ -123,5 +123,10 @@ onUpdated(measure)
 
 .seat { position: absolute; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .seat-name { font-size: 12px; font-weight: 500; color: var(--agent); background: var(--agent-dim); padding: 2px 10px; border-radius: var(--radius-full); white-space: nowrap; }
-.seat-bubble { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); z-index: 4; }
+.seat-bubble {
+  position: absolute; bottom: calc(100% + 12px); left: 50%;
+  transform: translateX(-50%); z-index: 4;
+  width: 300px;
+  pointer-events: none;
+}
 </style>

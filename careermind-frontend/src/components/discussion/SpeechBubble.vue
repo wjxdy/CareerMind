@@ -23,14 +23,18 @@ const truncated = computed(() => {
 </script>
 
 <style scoped>
-.bubble { position: relative; max-width: 320px; animation: pop var(--duration-base) var(--ease-emphasized); }
+.bubble { position: relative; width: 100%; animation: pop var(--duration-base) var(--ease-emphasized); }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .bubble-content {
   background: var(--bg-card); border: 1px solid var(--agent);
   color: var(--text-primary); padding: 10px 14px;
   border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
 }
-.bubble-text { margin: 0; font-size: 13px; line-height: 1.5; }
+.bubble-text {
+  margin: 0; font-size: 13px; line-height: 1.6;
+  word-break: break-word; overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
 .bubble-tail {
   position: absolute; top: -6px; left: 50%; transform: translateX(-50%) rotate(45deg);
   width: 10px; height: 10px; background: var(--bg-card);
