@@ -258,22 +258,23 @@ Max Tokens: 2000
 
 ## 变更记录
 
-### 2026-04-22
-**变更内容**: P1 品牌与 UI/UX 全面重做（计算机设计比赛冲刺，2 周 3 阶段的第 1 阶段）
-**影响范围**: 前端全量——设计 token + 15 个新组件（UI/Agent/Discussion 三个域）+ 9 个 View 重写
+### 2026-04-22 ~ 2026-04-23
+**变更内容**: P1 品牌与 UI/UX 全面重做（计算机设计比赛冲刺，2 周 3 阶段的第 1 阶段）+ 组件库由 Element Plus 迁移到 Naive UI
+**影响范围**: 前端全量——设计 token + 15 个新组件（UI/Agent/Discussion 三个域）+ 9 个 View 重写 + 组件库更换
 **详细说明**:
 1. 设计 token：`tokens.css` 定义日/夜两套 CSS 变量，Agent 五色人格色绑定 `[data-agent-type]`
 2. Tailwind 配置与 token 贯通（`var(--bg-card)` 等可直接用 tw class）
-3. 新增 11 个 ui/* 基础组件：BaseButton、BaseCard、BaseBadge、BaseTag、BaseInput、BaseSkeleton、EmptyState、BrandLogo、ThemeToggle、PageShell
+3. 新增 11 个 ui/* 基础组件：BaseButton、BaseCard、BaseBadge、BaseTag、BaseInput、BaseSkeleton、EmptyState、BrandLogo、ThemeToggle、PageShell、NaiveDiscreteInstaller
 4. 新增 4 个 agent/* 人格组件：AgentAvatar（4 size × 4 state 状态机 + 6 种符号徽章）、AgentAvatarGroup、AgentBadge、AgentCard
 5. 新增 4 个 discussion/* 组件：RoundTimeline（替代 RoundIndicator）、RoundtableStage（圆桌布局 + 5 座位）、MessageDrawer（右侧抽屉消息流）、SpeechBubble（发言气泡）、ChallengeFlow（质疑光流 SVG）
 6. 讨论页改为：顶栏 + 圆桌 + 可开关消息抽屉 + 固定底部输入栏；发言者放大光环、倾听者灰度呼吸、质疑瞬间光流
 7. Landing、Login、Tasks、TaskView、Result、Agents、Kb、Settings 全部按新设计体系重写
 8. 明暗主题切换已实现，设置页可手动切换
-9. Playwright 冒烟：`e2e-tests/tests/ui-brand.spec.js`（4 条用例）
-10. 依赖新增：`@vueuse/motion`
-11. Google Fonts 引入：Inter / JetBrains Mono / Noto Sans SC / Noto Serif SC
-**状态**: ✅ 已完成，build 通过
+9. **组件库迁移**：Element Plus → Naive UI。所有 el-dialog/el-form/el-input/el-select/el-dropdown/el-table/el-drawer/el-radio/el-upload 替换为 n-* 等价组件。ElMessage/ElMessageBox → `src/utils/naive-discrete.ts` 统一出口（Installer 组件注入 API，任意位置调用）
+10. Playwright 冒烟：`e2e-tests/tests/ui-brand.spec.js`（4 条用例）
+11. 依赖变更：+`@vueuse/motion`、+`naive-ui`；-`element-plus`、-`@element-plus/icons-vue`
+12. Google Fonts 引入：Inter / JetBrains Mono / Noto Sans SC / Noto Serif SC
+**状态**: ✅ 已完成，build 通过（bundle 从 ~1.2MB 降到 ~780KB）
 
 ### 2026-04-13 (晚)
 **变更内容**: 修复切换对话问题、添加用户设置功能、优化首页流程、修复创建Agent
