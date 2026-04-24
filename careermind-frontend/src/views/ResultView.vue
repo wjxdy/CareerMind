@@ -67,10 +67,18 @@
       </footer>
     </div>
 
+    <div v-else-if="generating" class="empty-wrap">
+      <div class="gen-state">
+        <div class="spinner-lg" />
+        <h3>正在整合讨论</h3>
+        <p class="muted">AI 正在阅读 4 轮讨论内容，生成候选方案与认知盲区，约 30 秒</p>
+      </div>
+    </div>
+
     <div v-else-if="!loading" class="empty-wrap">
-      <EmptyState title="尚未生成结果" description="请先完成讨论或从讨论页点击「生成报告」">
+      <EmptyState title="尚未生成结果" description="请先完成讨论，或点击重试生成">
         <template #action>
-          <BaseButton variant="primary" :loading="generating" @click="handleGenerate">生成结果</BaseButton>
+          <BaseButton variant="primary" @click="handleGenerate">重试生成</BaseButton>
         </template>
       </EmptyState>
     </div>
@@ -106,6 +114,26 @@ const load = async () => {
   try { graph.value = await graphApi.getGraph(taskId.value) }
   catch { graph.value = null }
   finally { loading.value = false }
+
+  // 无结果 → 自动触发生成
+  if (!mergeResult.value && !generating.value) {
+    autoGenerate()
+  }
+}
+
+const autoGenerate = async () => {
+  generating.value = true
+  try {
+    ElMessage.info('正在基于讨论生成结果，大约 30 秒…')
+    mergeResult.value = await mergeApi.generateMergeResult(taskId.value)
+    ElMessage.success('结果已生成')
+    // 生成后图可能也需要刷新
+    try { graph.value = await graphApi.getGraph(taskId.value) } catch {}
+  } catch (e: any) {
+    ElMessage.error(e.message || '生成失败，可稍后重试')
+  } finally {
+    generating.value = false
+  }
 }
 
 // 清理 LLM 偶发输出的 URL / [confidence:...] 标签
@@ -129,17 +157,7 @@ const toPercent = (v: number | undefined | null): number => {
 onMounted(load)
 watch(taskId, load)
 
-const handleGenerate = async () => {
-  generating.value = true
-  try {
-    mergeResult.value = await mergeApi.generateMergeResult(taskId.value)
-    ElMessage.success('结果已生成')
-  } catch (e: any) {
-    ElMessage.error(e.message || '生成失败')
-  } finally {
-    generating.value = false
-  }
-}
+const handleGenerate = autoGenerate
 
 const onExport = () => {
   const url = window.location.origin + `/report/print/${taskId.value}`
@@ -192,4 +210,14 @@ section { padding: 40px 40px; max-width: 1200px; margin: 0 auto; }
 .rv-foot { padding: 48px 40px 72px; display: flex; justify-content: space-between; border-top: 1px solid var(--border-subtle); max-width: 1200px; margin: 0 auto; }
 .empty-wrap { padding: 120px 40px; display: flex; justify-content: center; }
 .eyebrow { font-size: 13px; color: var(--accent); font-weight: 500; margin: 0; letter-spacing: 0.02em; }
+
+.gen-state { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; max-width: 400px; }
+.gen-state h3 { margin: 6px 0 0; font-size: 20px; letter-spacing: -0.015em; }
+.gen-state .muted { margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+.spinner-lg {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border-subtle); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
