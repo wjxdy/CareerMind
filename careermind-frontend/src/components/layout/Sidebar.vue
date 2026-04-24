@@ -11,7 +11,7 @@
     </div>
 
     <div class="sb-cta">
-      <BaseButton variant="primary" size="md" block @click="$router.push('/tasks')">
+      <BaseButton variant="primary" size="md" block @click="$router.push('/')">
         <span v-if="!collapsed">新建咨询</span>
         <span v-else>+</span>
       </BaseButton>
@@ -82,7 +82,6 @@ const taskStore = useTaskStore()
 
 const navItems = [
   { path: '/',       label: '首页',     icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9M5 10v11h14V10"/></svg>' },
-  { path: '/tasks',  label: '咨询',     icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' },
   { path: '/kb',     label: '知识库',   icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/></svg>' },
   { path: '/agents', label: 'Agent',    icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 11a4 4 0 0 0 0-8"/></svg>' },
 ]
