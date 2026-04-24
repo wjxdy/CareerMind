@@ -1,176 +1,280 @@
 <template>
-  <!-- 未登录：简洁居中 composer + 右上登录 -->
-  <div v-if="!user" class="home home-guest">
+  <div class="home">
     <header class="nav">
       <BrandLogo @click="$router.push('/')" />
       <div class="nav-actions">
         <ThemeToggle />
-        <BaseButton variant="ghost" size="sm" @click="$router.push('/login')">登录 / 注册</BaseButton>
+        <BaseButton v-if="!user" variant="primary" size="sm" @click="$router.push('/login')">登录</BaseButton>
+        <BaseButton v-else variant="primary" size="sm" @click="$router.push('/tasks')">进入咨询台</BaseButton>
       </div>
     </header>
-    <main class="main">
-      <ComposerBlock
-        :question="question"
-        :team="team"
-        :submitting="submitting"
-        :greeting="greeting"
-        :subtitle="subtitle"
-        :teams="teams"
-        :suggestions="currentSuggestions"
-        @update:question="question = $event"
-        @update:team="team = $event as Team"
-        @submit="submit"
-        @pick="useSuggestion"
-      />
-    </main>
-  </div>
 
-  <!-- 已登录：PageShell（左 Sidebar 里是历史） + 主区只有 composer -->
-  <PageShell v-else>
-    <div class="home home-shell">
-      <main class="main main-shell">
-        <ComposerBlock
-          :question="question"
-          :team="team"
-          :submitting="submitting"
-          :greeting="greeting"
-          :subtitle="subtitle"
-          :teams="teams"
-          :suggestions="currentSuggestions"
-          @update:question="question = $event"
-          @update:team="team = $event as Team"
-          @submit="submit"
-          @pick="useSuggestion"
-        />
-      </main>
-    </div>
-  </PageShell>
+    <section class="hero">
+      <p class="eyebrow">多 Agent 协同咨询</p>
+      <h1 class="title">让多位 AI 专家<br/>为你的问题辩一场</h1>
+      <p class="subtitle">
+        不管是职业转型、合同纠纷，还是人生选择，<br class="break-lg"/>
+        让不同视角的专家辩论后，答案才可靠。
+      </p>
+      <div class="cta">
+        <BaseButton variant="primary" size="lg" @click="start">开始咨询</BaseButton>
+        <a class="learn-link" href="#experts" @click.prevent="scrollTo('experts')">
+          了解专家团 <span class="arrow">→</span>
+        </a>
+      </div>
+    </section>
+
+    <section id="experts" class="experts">
+      <p class="eyebrow">专家团</p>
+      <h2 class="sec-title">按领域编队，多种视角</h2>
+      <div class="team-tabs">
+        <button v-for="t in teams" :key="t.key" class="team-tab" :class="{ on: activeTeam === t.key }" @click="activeTeam = t.key">
+          {{ t.label }}
+          <span class="count">· {{ t.agents.length }}</span>
+        </button>
+      </div>
+      <div class="experts-grid">
+        <AgentCard v-for="a in currentTeamAgents" :key="a" :type="a" />
+      </div>
+    </section>
+
+    <section class="flow">
+      <p class="eyebrow">工作流程</p>
+      <h2 class="sec-title">从分歧到共识，四轮递进</h2>
+      <div class="flow-steps">
+        <div v-for="(s, i) in flowSteps" :key="i" class="flow-step">
+          <div class="step-num">0{{ i + 1 }}</div>
+          <h4 class="step-name">{{ s.name }}</h4>
+          <p class="step-desc">{{ s.desc }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="use-cases">
+      <p class="eyebrow">适用场景</p>
+      <h2 class="sec-title">它能帮你做什么</h2>
+      <div class="cases-grid">
+        <div v-for="c in useCases" :key="c.title" class="case">
+          <h4 class="case-title">{{ c.title }}</h4>
+          <p class="case-desc">{{ c.desc }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="final-cta">
+      <h2>准备好，开一场辩论？</h2>
+      <BaseButton variant="primary" size="lg" @click="start">免费开始</BaseButton>
+    </section>
+
+    <footer class="foot">
+      <BrandLogo size="sm" />
+      <span class="foot-text">CareerMind · 多 Agent 协同咨询</span>
+      <span class="foot-right">© 2026</span>
+    </footer>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { useTaskStore } from '@/stores/task'
-import { useAgentStore } from '@/stores/agent'
-import { message as ElMessage } from '@/utils/naive-discrete'
 import BrandLogo from '@/components/ui/BrandLogo.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
-import PageShell from '@/components/ui/PageShell.vue'
-
-// 提取成子组件，guest 与 shell 版公用
-const ComposerBlock = defineAsyncComponent(() => import('@/components/home/ComposerBlock.vue'))
+import AgentCard from '@/components/agent/AgentCard.vue'
+import type { AgentType } from '@/types'
 
 const router = useRouter()
-const userStore = useUserStore()
-const taskStore = useTaskStore()
-const agentStore = useAgentStore()
+const user = computed(() => useUserStore().user)
 
-const user = computed(() => userStore.user)
+const teams = [
+  { key: 'career' as const, label: '职业团', agents: ['INDUSTRY_ANALYST','SKILL_ASSESSOR','RISK_WATCHER','OPPORTUNITY_HUNTER','VALUE_EXAMINER'] as AgentType[] },
+  { key: 'legal'  as const, label: '法律团', agents: ['CONTRACT_REVIEWER','LITIGATION_ANALYST','RIGHTS_DEFENDER','PRACTICAL_COUNSEL','MEDIATION_ADVISOR'] as AgentType[] },
+]
+const activeTeam = ref<'career' | 'legal'>('career')
+const currentTeamAgents = computed(() => teams.find(t => t.key === activeTeam.value)?.agents || [])
 
-const question = ref('')
-const submitting = ref(false)
-
-type Team = 'career' | 'legal'
-const team = ref<Team>('career')
-const teams: { key: Team; label: string }[] = [
-  { key: 'career', label: '职业团' },
-  { key: 'legal',  label: '法律团' },
+const flowSteps = [
+  { name: '独立诊断', desc: '各位专家独立给出各自视角的判断，不互相干扰。' },
+  { name: '质疑挑战', desc: '专家相互质疑对方的观点，暴露盲区与假设。' },
+  { name: '修正完善', desc: '每位专家基于反馈修正或坚持自己的立场。' },
+  { name: '最终陈述', desc: '汇总为候选方案，并标注共识度与适用条件。' },
 ]
 
-const suggestionsByTeam: Record<Team, string[]> = {
-  career: ['要不要从互联网转行到金融？', '跳槽去大厂还是等晋升？', '毕业3年该不该读研？'],
-  legal:  ['这份合同对我不利吗？', '被拖欠工资，值得起诉吗？', '房东要涨租，我能怎么谈？'],
-}
-const currentSuggestions = computed(() => suggestionsByTeam[team.value])
+const useCases = [
+  { title: '职业决策',     desc: '转行、跳槽、晋升、读研，多视角权衡能力迁移与机会成本。' },
+  { title: '合同与纠纷',   desc: '审合同、估打官司胜算、维权路径与和解方案。' },
+  { title: '重大选择',     desc: '只要问题没有标准答案，就值得让多方视角先辩一辩。' },
+]
 
-const greeting = computed(() => {
-  const h = new Date().getHours()
-  if (h < 6) return '夜深了，需要一个视角？'
-  if (h < 12) return '早上好，今天想讨论什么？'
-  if (h < 18) return '今天想讨论点什么？'
-  return '晚上好，需要一场辩论吗？'
-})
-const subtitle = '不管是职业决策、合同纠纷、还是人生选择，让多位 AI 专家辩论后给你答案。'
-
-const useSuggestion = (s: string) => {
-  question.value = s
-}
-
-const submit = async () => {
-  const goal = question.value.trim()
-  if (!goal) return
-  if (!user.value) {
-    localStorage.setItem('tempQuestion', goal)
-    router.push('/login')
-    return
-  }
-  if (submitting.value) return
-  submitting.value = true
-  try {
-    await agentStore.fetchAvailableAgents()
-    const teamTypes = team.value === 'legal'
-      ? ['CONTRACT_REVIEWER','LITIGATION_ANALYST','RIGHTS_DEFENDER','PRACTICAL_COUNSEL','MEDIATION_ADVISOR']
-      : ['INDUSTRY_ANALYST','SKILL_ASSESSOR','RISK_WATCHER','OPPORTUNITY_HUNTER','VALUE_EXAMINER']
-    const agentIds = agentStore.availableAgents
-      .filter(a => a.isPreset && teamTypes.includes(a.type))
-      .map(a => a.id)
-    if (agentIds.length === 0) {
-      ElMessage.error('Agent 未初始化，请稍后再试')
-      return
-    }
-    const title = goal.slice(0, 12)
-    const task = await taskStore.createTask({
-      title,
-      goal,
-      background: localStorage.getItem('userBio') || undefined,
-      agentIds,
-    })
-    router.push(`/discussions/${task.id}`)
-  } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
-  } finally {
-    submitting.value = false
-  }
-}
-
-onMounted(() => {
-  const q = localStorage.getItem('tempQuestion')
-  if (q && user.value) { question.value = q; localStorage.removeItem('tempQuestion') }
-  if (user.value) taskStore.fetchTasks()
-})
+const start = () => router.push(user.value ? '/tasks' : '/login')
+const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
 </script>
 
 <style scoped>
-.home { min-height: 100vh; background: var(--bg-page); display: flex; flex-direction: column; }
-
-/* Guest (未登录) */
-.home-guest .nav {
+.home {
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+.nav {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 32px;
-  background: rgba(255,255,255,0.78);
-  backdrop-filter: saturate(180%) blur(16px);
-  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  padding: 14px 40px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid var(--border-subtle);
 }
-html[data-theme="dark"] .home-guest .nav { background: rgba(0,0,0,0.7); }
-.nav-actions { display: flex; align-items: center; gap: 8px; }
+html[data-theme="dark"] .nav { background: rgba(0,0,0,0.72); }
+.nav-actions { display: flex; align-items: center; gap: 10px; }
 
-.main {
-  flex: 1;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 40px 20px 80px;
-  max-width: 780px; margin: 0 auto; width: 100%;
+/* ---- Hero ---- */
+.hero {
+  max-width: 980px; margin: 0 auto;
+  padding: 140px 24px 120px;
+  text-align: center;
+}
+.eyebrow {
+  font-size: 13px; font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  margin: 0 0 20px;
+}
+.title {
+  font-size: 88px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  margin: 0 0 24px;
+}
+.subtitle {
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  margin: 0 auto 44px;
+  max-width: 680px;
+}
+.cta { display: inline-flex; align-items: center; gap: 24px; }
+.learn-link {
+  color: var(--accent);
+  font-size: 16px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.learn-link .arrow { transition: transform var(--duration-fast) var(--ease-standard); }
+.learn-link:hover .arrow { transform: translateX(4px); }
+
+/* ---- Sections ---- */
+section {
+  padding: 110px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.sec-title {
+  font-size: 52px; font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0 0 40px;
 }
 
-/* Shell (已登录，主区内容) */
-.home-shell { height: 100vh; }
-.main-shell {
-  height: 100%;
-  padding: 0 24px;
-  max-width: 820px; margin: 0 auto; width: 100%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+/* Experts section with tabs */
+.experts { text-align: center; }
+.experts .sec-title { margin-bottom: 24px; }
+.team-tabs {
+  display: inline-flex; gap: 4px;
+  background: var(--bg-elevated);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  margin: 0 auto 40px;
+}
+.team-tab {
+  padding: 9px 22px;
+  background: transparent; border: none;
+  font-size: 14px; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: all var(--duration-fast) var(--ease-standard);
+  letter-spacing: -0.005em;
+}
+.team-tab.on { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.team-tab .count { color: var(--text-muted); font-size: 12px; margin-left: 2px; font-weight: 400; }
+.experts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  text-align: left;
+}
+
+/* Flow steps */
+.flow-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+.flow-step {
+  padding: 32px 24px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+.flow-step:hover { transform: translateY(-4px); }
+.step-num {
+  font-family: var(--font-mono);
+  font-size: 13px; color: var(--accent); font-weight: 500;
+  margin-bottom: 18px; letter-spacing: 0;
+}
+.step-name { font-size: 22px; margin: 0 0 10px; letter-spacing: -0.015em; }
+.step-desc { margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+/* Use cases */
+.cases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.case {
+  padding: 36px 28px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+}
+.case-title { font-size: 24px; margin: 0 0 12px; letter-spacing: -0.015em; }
+.case-desc  { margin: 0; font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
+
+/* Final CTA */
+.final-cta {
+  text-align: center;
+  padding: 140px 40px;
+}
+.final-cta h2 {
+  font-size: 64px;
+  margin: 0 0 32px;
+  letter-spacing: -0.03em;
+}
+
+/* Footer */
+.foot {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted); font-size: 12px;
+}
+.foot-text { flex: 1; color: var(--text-muted); }
+
+.break-lg { display: inline; }
+
+@media (max-width: 768px) {
+  .nav { padding: 12px 20px; }
+  .hero { padding: 80px 20px 60px; }
+  .title { font-size: 48px; }
+  .subtitle { font-size: 17px; }
+  .sec-title { font-size: 34px; margin-bottom: 32px; }
+  section { padding: 70px 20px; }
+  .flow-steps { grid-template-columns: repeat(2, 1fr); }
+  .final-cta h2 { font-size: 36px; }
+  .break-lg { display: none; }
+  .cta { flex-direction: column; gap: 14px; }
 }
 </style>

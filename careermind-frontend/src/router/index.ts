@@ -19,7 +19,9 @@ const router = createRouter({
     },
     {
       path: '/tasks',
-      redirect: '/',
+      name: 'Tasks',
+      component: () => import('@/views/TasksView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/tasks/:id',
