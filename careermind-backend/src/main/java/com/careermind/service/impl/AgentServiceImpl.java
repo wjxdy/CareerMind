@@ -6,12 +6,14 @@ import com.careermind.enums.AgentType;
 import com.careermind.repository.AgentRepository;
 import com.careermind.service.AgentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentServiceImpl implements AgentService {
@@ -84,9 +86,11 @@ public class AgentServiceImpl implements AgentService {
     @Override
     @Transactional
     public void initPresetAgents() {
-        if (!agentRepository.findByIsPresetTrue().isEmpty()) {
-            return;
-        }
+        // 按 type upsert：已存在的预设 Agent 跳过，缺失的补上
+        // 这样新增类型（如法律团）可在不清库的情况下自动 seed
+        java.util.Set<AgentType> existingPresetTypes = agentRepository.findByIsPresetTrue().stream()
+                .map(Agent::getType)
+                .collect(java.util.stream.Collectors.toSet());
 
         List<Agent> presetAgents = new ArrayList<>();
 
@@ -192,6 +196,17 @@ public class AgentServiceImpl implements AgentService {
                 .isPreset(true)
                 .build());
 
-        agentRepository.saveAll(presetAgents);
+        // 过滤掉已存在的类型
+        List<Agent> toInsert = presetAgents.stream()
+                .filter(a -> !existingPresetTypes.contains(a.getType()))
+                .toList();
+        if (!toInsert.isEmpty()) {
+            agentRepository.saveAll(toInsert);
+            log.info("[initPresetAgents] 新增 {} 个预设 Agent: {}",
+                    toInsert.size(),
+                    toInsert.stream().map(a -> a.getType().name()).toList());
+        } else {
+            log.info("[initPresetAgents] 所有预设 Agent 已存在，跳过");
+        }
     }
 }
