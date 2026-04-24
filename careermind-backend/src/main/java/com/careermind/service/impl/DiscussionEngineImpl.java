@@ -70,6 +70,13 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                 discussion = discussionRepository.save(discussion);
             }
 
+            // 同步 task.status → DISCUSSING
+            Task task = taskRepository.findById(taskId).orElse(null);
+            if (task != null && task.getStatus() != com.careermind.enums.TaskStatus.COMPLETED) {
+                task.setStatus(com.careermind.enums.TaskStatus.DISCUSSING);
+                taskRepository.save(task);
+            }
+
             discussionRepository.flush();
             roundRepository.flush();
 
@@ -262,6 +269,22 @@ public class DiscussionEngineImpl implements DiscussionEngine {
                         webSocketHandler.sendGraphDelta(taskId, currentRound, divergence.doubleValue());
                     } catch (Exception ex) {
                         log.warn("sendGraphDelta 失败: {}", ex.getMessage());
+                    }
+
+                    // 第 4 轮（FINAL）结束 → task.status = COMPLETED
+                    if (currentRound >= 4) {
+                        Task task = taskRepository.findById(taskId).orElse(null);
+                        if (task != null) {
+                            task.setStatus(com.careermind.enums.TaskStatus.COMPLETED);
+                            taskRepository.save(task);
+                            log.info("Task {} 已标记为 COMPLETED", taskId);
+                        }
+                        // 同时把 discussion.isActive 置为 false（讨论自然结束）
+                        Discussion d = discussionRepository.findById(discussionId).orElse(null);
+                        if (d != null) {
+                            d.setIsActive(false);
+                            discussionRepository.save(d);
+                        }
                     }
                 }
                 return null;
