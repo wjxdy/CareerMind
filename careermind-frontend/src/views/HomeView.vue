@@ -63,7 +63,7 @@
 
     <section class="final-cta">
       <h2>准备好，开一场辩论？</h2>
-      <BaseButton variant="primary" size="lg" @click="start">免费开始</BaseButton>
+      <BaseButton variant="primary" size="lg" @click="start">{{ user ? '立即开始' : '登录后开始' }}</BaseButton>
     </section>
 
     <footer class="foot">
