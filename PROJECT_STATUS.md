@@ -258,6 +258,40 @@ Max Tokens: 2000
 
 ## 变更记录
 
+### 2026-04-27 (生产部署上线)
+**变更内容**: 首次部署到阿里云 ECS（8.140.63.245），CareerMind 全栈服务上线
+**影响范围**: 服务器 `/opt/careermind/`、`/etc/nginx/conf.d/careermind.conf`、`careermind-backend.service`；本地 `careermind-rag/Dockerfile`
+**部署架构**:
+- **服务器**: 阿里云 ECS 8.140.63.245（Aliyun Linux 3，2 核 1.8GiB，2GB swap）
+- **复用宿主机**: MySQL 8 / Redis 7（共存于 blog xuleii.cn 同台机器，端口 3306/6379；careermind 用 Redis db=1，blog 用 db=0）
+- **Java 后端**: bare jar + systemd（`careermind-backend.service`），监听 127.0.0.1:8082，`-Xmx512m`
+- **Rust RAG**: Docker compose（`/opt/careermind/docker-compose.yml`）
+  - `cm_rag` → 127.0.0.1:3001 → 容器内 :3000
+  - `cm_qdrant` → 127.0.0.1:6333（向量库 v1.7.4，自动创建 `careermind_kb` collection）
+- **前端**: 静态 dist 部署到 `/opt/careermind/frontend/dist`，nginx 直接 serve
+- **nginx 路由** (`careermind.conf`，`default_server` on :80 IP-only)：
+  - `/` → 前端
+  - `/api/kb` → RAG :3001
+  - `/api/` + `/ws` → Java :8082
+  - `Host: xuleii.cn` 走 blog 旧配置不变
+**关键操作**:
+1. 创建 2GB swap（`/swapfile`，写入 fstab），低内存 ECS 必须
+2. Docker registry mirrors（daocloud / dockerproxy / ustc / 163）写入 `/etc/docker/daemon.json`
+3. MySQL 创建 `careermind` 库 + `careermind` 用户（密码存于 `/opt/careermind/cm.env`，chmod 600）
+4. RAG `Dockerfile` 改用阿里云 debian mirror + rsproxy.cn cargo mirror（避开 deb.debian.org 慢源）
+5. RAG base image 升级 1.75 → 1.85 → **1-slim**（项目依赖 `image@0.25.10` 需要 Rust 1.88+）
+6. 手动应用 `careermind-rag/sql/migrations/001_init.sql` + `002_indexes.sql` 建 `knowledge_bases` / `documents` / `document_chunks` 三表（RAG 服务未自动迁移）
+**验证通过**:
+- `http://8.140.63.245/` → 200（前端）
+- `http://8.140.63.245/api/agents/preset` → 200（10 个 agent，5 职业 + 5 法律）
+- `http://8.140.63.245/api/kb` → 200 `{"items":[],"total":0}`
+- `Host: xuleii.cn` → 301 → https（blog 不受影响）
+**已知细节**:
+- 编译时间 17m44s（2 核箱子，cargo release 满载，swap 用到 1.4G，未 OOM）
+- RAG 启动连 MySQL `host.docker.internal` + Qdrant 容器内 alias，均正常
+- Secrets 仅落盘服务器 `/opt/careermind/{cm,rag}.env`（chmod 600），未入库
+**状态**: ✅ 已上线，公网可访问
+
 ### 2026-04-23 (UI 三 Bug 修复)
 **变更内容**: 修复用户反馈的三个 UI 问题
 **影响范围**: 前端 Sidebar.vue、PageShell.vue、ResultView.vue、RoundtableStage.vue
@@ -379,7 +413,7 @@ Max Tokens: 2000
 **状态**: ✅ 核心功能测试通过
 
 ## 最后更新时间
-2026-04-22
+2026-04-27（生产部署上线 → 8.140.63.245）
 
 ## 系统状态
 ✅ **4轮完整讨论流程已测试通过** - 所有4轮（独立诊断→质疑挑战→修正观点→最终陈述）均正常工作
