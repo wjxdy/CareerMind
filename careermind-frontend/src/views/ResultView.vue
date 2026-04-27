@@ -121,13 +121,29 @@ const load = async () => {
   }
 }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+// 后端 generate 接口是流式异步的，返回时结果尚未入库。
+// 触发后轮询 getMergeResult，最长 120s。
 const autoGenerate = async () => {
   generating.value = true
   try {
     ElMessage.info('正在基于讨论生成结果，大约 30 秒…')
-    mergeResult.value = await mergeApi.generateMergeResult(taskId.value)
+    await mergeApi.generateMergeResult(taskId.value).catch(() => {})
+
+    const deadline = Date.now() + 120_000
+    let result: MergeResult | null = null
+    while (Date.now() < deadline) {
+      await sleep(2000)
+      try {
+        result = await mergeApi.getMergeResult(taskId.value)
+        if (result) break
+      } catch { /* 404 即结果还没好，继续轮询 */ }
+    }
+
+    if (!result) throw new Error('生成超时，可稍后重试')
+    mergeResult.value = result
     ElMessage.success('结果已生成')
-    // 生成后图可能也需要刷新
     try { graph.value = await graphApi.getGraph(taskId.value) } catch {}
   } catch (e: any) {
     ElMessage.error(e.message || '生成失败，可稍后重试')
