@@ -34,12 +34,26 @@ jwt:
 llm:
   default-provider: kimi
 
+  # HTTP 客户端池（HttpClient5）
+  http:
+    max-total: 50          # 全局最大连接数
+    max-per-route: 20      # 单 host 最大连接（moonshot.cn / openai.com 各算一路由）
+    connect-timeout-ms: 5000
+    response-timeout-ms: 120000  # 流式响应允许 2min
+
+  # 业务线程池（Round 1/4 并行 + 队列 Worker 共用）
+  executor:
+    core-size: 4
+    max-size: 8
+    queue-capacity: 20
+
   kimi:
     api-key: ${KIMI_API_KEY:}
     base-url: ${KIMI_BASE_URL:https://api.moonshot.cn/v1}
     model: ${KIMI_MODEL:moonshot-v1-8k}
     temperature: 0.7
     max-tokens: 2000
+    max-concurrency: 3  # 对 Kimi 的并发闸门（应内排队 > 429）
 
   openai:
     api-key: ${OPENAI_API_KEY:}
@@ -59,6 +73,42 @@ llm:
 rag:
   service:
     url: ${RAG_SERVICE_URL:http://localhost:3000}
+
+# 讨论队列（P2 削峰）
+discussion:
+  queue:
+    key: careermind:discussion:queue  # Redis List Key
+    poll-interval-ms: 500             # Worker 轮询间隔
+    worker-enabled: true
+
+# Resilience4j 韧性配置（针对上游 LLM）
+resilience4j:
+  retry:
+    instances:
+      kimi:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+        # 只对网络异常 / 5xx / 429 重试，对业务异常不重试
+        retry-exceptions:
+          - java.io.IOException
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException.Unauthorized
+          - org.springframework.web.client.HttpClientErrorException.Forbidden
+  circuitbreaker:
+    instances:
+      kimi:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10               # 滑动窗口大小
+        minimum-number-of-calls: 5            # 至少 5 次调用后才计算失败率
+        failure-rate-threshold: 50            # 失败率 ≥50% 打开熔断
+        slow-call-rate-threshold: 80          # 慢调用率
+        slow-call-duration-threshold: 30s     # >30s 视为慢调用
+        wait-duration-in-open-state: 30s      # 熔断后 30s 进半开
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
 
 logging:
   level:

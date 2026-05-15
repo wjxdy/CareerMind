@@ -4,18 +4,22 @@ import com.careermind.client.KnowledgeBaseClient;
 import com.careermind.domain.*;
 import com.careermind.dto.*;
 import com.careermind.enums.*;
+import com.careermind.queue.DiscussionQueueService;
 import com.careermind.repository.*;
 import com.careermind.service.DiscussionEngine;
 import com.careermind.websocket.DiscussionWebSocketHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,6 +36,9 @@ public class DiscussionEngineImpl implements DiscussionEngine {
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
     private final KnowledgeBaseClient knowledgeBaseClient;
+    @Qualifier("llmExecutor")
+    private final ThreadPoolTaskExecutor llmExecutor;
+    private final DiscussionQueueService discussionQueue;
 
     @Override
     @Transactional
@@ -83,8 +90,9 @@ public class DiscussionEngineImpl implements DiscussionEngine {
             return convertToDto(discussion);
         });
 
-        Discussion savedDiscussion = discussionRepository.findById(dto.getId()).orElseThrow();
-        startAgentDiscussion(savedDiscussion);
+        // P2: 投入 Redis 队列削峰，由 DiscussionWorker 消费
+        long pos = discussionQueue.enqueue(dto.getTaskId());
+        webSocketHandler.sendQueueStatus(dto.getTaskId(), pos, discussionQueue.size());
 
         return dto;
     }
@@ -149,10 +157,46 @@ public class DiscussionEngineImpl implements DiscussionEngine {
             return convertToDto(discussion);
         });
 
-        Discussion savedDiscussion = discussionRepository.findById(dto.getId()).orElseThrow();
-        startAgentDiscussion(savedDiscussion);
+        // P2: 投入队列削峰
+        long pos = discussionQueue.enqueue(dto.getTaskId());
+        webSocketHandler.sendQueueStatus(dto.getTaskId(), pos, discussionQueue.size());
 
         return dto;
+    }
+
+    @Override
+    public void executeCurrentRound(Long taskId) {
+        Object[] ctx = transactionTemplate.execute(status -> {
+            Discussion d = discussionRepository.findByTaskId(taskId).orElse(null);
+            if (d == null) return null;
+            Task t = taskRepository.findById(taskId).orElse(null);
+            if (t == null) return null;
+            return new Object[]{
+                    d.getId(),
+                    d.getCurrentRound(),
+                    Boolean.TRUE.equals(d.getIsActive()),
+                    new ArrayList<>(t.getAgents()) // 触发懒加载并脱离 Hibernate session
+            };
+        });
+        if (ctx == null) {
+            log.error("[executeCurrentRound] 加载 Discussion/Task 失败: taskId={}", taskId);
+            return;
+        }
+        Long discussionId = (Long) ctx[0];
+        int currentRound = (Integer) ctx[1];
+        boolean isActive = (Boolean) ctx[2];
+        @SuppressWarnings("unchecked")
+        List<Agent> agents = (List<Agent>) ctx[3];
+
+        if (agents.isEmpty()) {
+            log.error("[executeCurrentRound] Task {} 没有关联 Agent，跳过", taskId);
+            return;
+        }
+
+        RoundType roundType = getRoundType(currentRound);
+        log.info("[executeCurrentRound] 启动: taskId={}, round={}, type={}, agents={}, active={}",
+                taskId, currentRound, roundType, agents.size(), isActive);
+        runAgentDiscussion(discussionId, taskId, currentRound, agents, isActive, roundType);
     }
 
     private void createRound(Discussion discussion, int roundNumber, RoundType roundType) {
@@ -183,47 +227,6 @@ public class DiscussionEngineImpl implements DiscussionEngine {
         };
     }
 
-    private void startAgentDiscussion(Discussion discussion) {
-        Long discussionId = discussion.getId();
-        int currentRound = discussion.getCurrentRound();
-
-        Task task = taskRepository.findById(discussion.getTask().getId()).orElse(null);
-        if (task == null) {
-            log.error("无法加载Task数据");
-            return;
-        }
-
-        List<Agent> agents = new ArrayList<>(task.getAgents());
-        Long taskId = task.getId();
-
-        boolean isActive = discussion.getIsActive() != null ? discussion.getIsActive() : false;
-        log.info("准备启动讨论: Task ID={}, Agents数量={}, 第{}轮, isActive={}", taskId, agents.size(), currentRound, isActive);
-
-        if (agents.isEmpty()) {
-            log.error("没有Agent参与讨论，无法启动");
-            return;
-        }
-
-        if (!isActive) {
-            log.error("讨论状态为未激活，不启动异步线程");
-            return;
-        }
-
-        for (Agent agent : agents) {
-            log.info("参与讨论的Agent: {} (ID: {}, Type: {})", agent.getName(), agent.getId(), agent.getType());
-        }
-
-        final boolean activeState = isActive;
-        final RoundType roundTypeState = getRoundType(currentRound);
-        CompletableFuture.runAsync(() -> {
-            log.info("异步讨论线程启动 - Discussion ID: {}, Task ID: {}, isActive={}, roundType={}", discussionId, taskId, activeState, roundTypeState);
-            runAgentDiscussion(discussionId, taskId, currentRound, agents, activeState, roundTypeState);
-        }).exceptionally(e -> {
-            log.error("异步讨论执行失败", e);
-            return null;
-        });
-    }
-
     private void runAgentDiscussion(Long discussionId, Long taskId, int currentRound, List<Agent> agents, boolean isActive, RoundType roundType) {
         log.info("开始第{}轮讨论, Task ID: {}, Discussion ID: {}, 参与Agent数: {}, isActive={}, type={}",
                 currentRound, taskId, discussionId, agents.size(), isActive, roundType);
@@ -233,22 +236,12 @@ public class DiscussionEngineImpl implements DiscussionEngine {
             return;
         }
 
-        for (int i = 0; i < agents.size(); i++) {
-            Agent agent = agents.get(i);
-            log.info("处理第 {}/{} 个Agent: {}", i + 1, agents.size(), agent.getName());
-
-            try {
-                processAgentMessageStream(agent, discussionId, taskId, currentRound, roundType, agents);
-
-                if (i < agents.size() - 1) {
-                    log.info("等待2秒后处理下一个Agent...");
-                    Thread.sleep(2000);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error("讨论被中断", e);
-                break;
-            }
+        // P1：Round 1 (INDEPENDENT) 和 Round 4 (FINAL) Agent 间无数据依赖 → 并行
+        //      Round 2 (CHALLENGE) 和 Round 3 (REVISION) 依赖前轮发言顺序 → 串行
+        if (roundType == RoundType.INDEPENDENT || roundType == RoundType.FINAL) {
+            runRoundParallel(discussionId, taskId, currentRound, roundType, agents);
+        } else {
+            runRoundSerial(discussionId, taskId, currentRound, roundType, agents);
         }
 
         try {
@@ -308,6 +301,118 @@ public class DiscussionEngineImpl implements DiscussionEngine {
         } catch (Exception e) {
             log.error("清空用户插话标记失败: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * 串行执行一轮（Round 2/3）：Agent 间有数据依赖，必须按顺序。
+     */
+    private void runRoundSerial(Long discussionId, Long taskId, int currentRound, RoundType roundType, List<Agent> agents) {
+        log.info("[Serial] 第{}轮 {} 串行执行 {} 个 Agent", currentRound, roundType, agents.size());
+        for (int i = 0; i < agents.size(); i++) {
+            Agent agent = agents.get(i);
+            log.info("[Serial] 处理 {}/{}: {}", i + 1, agents.size(), agent.getName());
+            try {
+                processAgentMessageStream(agent, discussionId, taskId, currentRound, roundType, agents);
+                if (i < agents.size() - 1) {
+                    Thread.sleep(2000); // 避免触发 Kimi RPM 限流
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("[Serial] 讨论被中断", e);
+                break;
+            }
+        }
+    }
+
+    /**
+     * 并行执行一轮（Round 1/4）：
+     *  - 阶段 1：在 llmExecutor 上并发调用同步版 LLM，所有 Agent 同时拿完整内容
+     *           （受 LLMGateway 内 Semaphore(3) 限制实际并发数）
+     *  - 阶段 2：按 agents 顺序串行重放流式（sendStreamStart → chunk → end），保持前端 UX 不变
+     * 收益：原 5×30s ≈ 150s → max(LLM) + 重放 ≈ 60-80s
+     */
+    private void runRoundParallel(Long discussionId, Long taskId, int currentRound, RoundType roundType, List<Agent> agents) {
+        log.info("[Parallel] 第{}轮 {} 并行执行 {} 个 Agent", currentRound, roundType, agents.size());
+
+        // 阶段 1：并发拉取所有 Agent 内容
+        long t0 = System.currentTimeMillis();
+        List<CompletableFuture<String>> futures = new ArrayList<>();
+        for (Agent agent : agents) {
+            CompletableFuture<String> f = CompletableFuture.supplyAsync(() -> {
+                Round round = roundRepository.findByDiscussionIdAndRoundNumber(discussionId, currentRound)
+                        .orElseGet(() -> {
+                            Discussion d = discussionRepository.findById(discussionId).orElseThrow();
+                            return roundRepository.save(Round.builder()
+                                    .discussion(d).roundNumber(currentRound).roundType(roundType).isCompleted(false).build());
+                        });
+                Task task = taskRepository.findById(taskId).orElseThrow();
+                String prompt = buildPrompt(agent, task, round, agents, currentRound, discussionId);
+                return llmGateway.generateAgentResponse(agent, prompt);
+            }, llmExecutor).exceptionally(e -> {
+                log.error("[Parallel] Agent {} LLM 调用失败", agent.getName(), e);
+                return "（该专家发言生成失败，已跳过）";
+            });
+            futures.add(f);
+        }
+
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("[Parallel] 并发拉取超时/异常", e);
+        }
+        log.info("[Parallel] 并发拉取耗时: {}ms", System.currentTimeMillis() - t0);
+
+        // 阶段 2：按 agents 顺序流式重放给前端（保留打字效果，前端 0 修改）
+        for (int i = 0; i < agents.size(); i++) {
+            Agent agent = agents.get(i);
+            String fullContent;
+            try {
+                fullContent = futures.get(i).get();
+            } catch (Exception e) {
+                log.error("[Parallel] 取 Agent {} 结果失败", agent.getName(), e);
+                continue;
+            }
+            replayStreamAndSave(taskId, discussionId, currentRound, roundType, agent, fullContent);
+        }
+        log.info("[Parallel] 整轮（含重放）耗时: {}ms", System.currentTimeMillis() - t0);
+    }
+
+    /**
+     * 把已生成的完整内容以流式协议推给前端，并落库。
+     * chunkSize=6 字 / 间隔 15ms ≈ 单 Agent 重放 1-3s，5 Agent 串行重放 5-15s。
+     */
+    private void replayStreamAndSave(Long taskId, Long discussionId, int currentRound, RoundType roundType, Agent agent, String fullContent) {
+        Round round = roundRepository.findByDiscussionIdAndRoundNumber(discussionId, currentRound)
+                .orElseGet(() -> {
+                    Discussion d = discussionRepository.findById(discussionId).orElseThrow();
+                    return roundRepository.save(Round.builder()
+                            .discussion(d).roundNumber(currentRound).roundType(roundType).isCompleted(false).build());
+                });
+
+        webSocketHandler.sendStreamStart(taskId, agent.getId(), agent.getName(), agent.getType().name(), agent.getAvatarUrl());
+
+        int chunkSize = 6;
+        for (int idx = 0; idx < fullContent.length(); idx += chunkSize) {
+            int end = Math.min(idx + chunkSize, fullContent.length());
+            webSocketHandler.sendStreamChunk(taskId, fullContent.substring(idx, end));
+            try { Thread.sleep(15); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+        }
+
+        java.math.BigDecimal confidence = com.careermind.util.MessageMetaParser.parseConfidence(fullContent)
+                .orElse(java.math.BigDecimal.valueOf(0.6));
+        String edgeType = com.careermind.util.MessageMetaParser.inferEdgeType(currentRound, fullContent);
+
+        Message message = Message.builder()
+                .round(round)
+                .agent(agent)
+                .content(fullContent)
+                .isFinal(roundType == RoundType.FINAL)
+                .confidence(confidence)
+                .edgeType(edgeType)
+                .build();
+        Message saved = messageRepository.save(message);
+        webSocketHandler.sendStreamEnd(taskId, saved.getId());
+        log.info("[Replay] Agent {} 完成, msgId={}, confidence={}, edge={}", agent.getName(), saved.getId(), confidence, edgeType);
     }
 
     private void processAgentMessageStream(Agent agent, Long discussionId, Long taskId, int currentRound, RoundType roundType, List<Agent> allAgents) {

@@ -10,9 +10,9 @@
 ## 后端功能进度
 
 ### 1. 用户认证模块 ✅ 已完成
-- [x] 用户注册
+- [x] 用户注册（**已关闭，生产仅登录**，2026-04-27 后端返回 403）
 - [x] 用户登录
-- [x] JWT Token认证
+- [x] JWT Token认证（**已对全 API 强制**，JwtAuthFilter + `anyRequest().authenticated()`）
 - [x] 密码加密存储
 
 ### 2. Agent管理模块 ✅ 已完成
@@ -258,6 +258,49 @@ Max Tokens: 2000
 
 ## 变更记录
 
+### 2026-05-15 (LLM 高并发系统改造：P0 基础设施 + P1 业务并行 + P2 队列削峰)
+**变更内容**: 针对 LLM 调用全链路做并发改造 —— HTTP 池化、Resilience4j 韧性、Round 1/4 并行、Redis 队列削峰
+**影响范围**: 后端 pom.xml、application.yml、新增 `config/LLMHttpConfig.java`、新增 `queue/{DiscussionQueueService,DiscussionWorker}.java`、改造 `service/impl/{LLMGatewayImpl,DiscussionEngineImpl}.java`、扩展 `websocket/DiscussionWebSocketHandler.java`、扩展 `service/DiscussionEngine.java` 接口
+**详细说明**:
+1. **P0 基础设施层**
+   - 引入 Apache HttpClient5 + Resilience4j Spring Boot 3 starter + spring-boot-starter-aop
+   - 新建 `LLMHttpConfig`：
+     - `llmRestTemplate` 池化（maxTotal 50, maxPerRoute 20, connect 5s, response 120s, evictIdleConnections 30s）
+     - `llmExecutor` ThreadPoolTaskExecutor（core 4, max 8, queue 20, `CallerRunsPolicy` 背压）
+     - `kimiSemaphore` Semaphore(3, fair=true)，应用内排队替代上游 429
+   - `LLMGatewayImpl` 注入池化客户端，移除 `private final RestTemplate restTemplate = new RestTemplate()` 与流式版本里的 `new RestTemplate(factory)`；callKimi 包 Semaphore + `先 CircuitBreaker 再 Retry` 手动 decorate；流式调用只挂 Semaphore（中途断流重试代价大）
+   - `application.yml`：新增 `llm.http.*` / `llm.executor.*` / `llm.kimi.max-concurrency` / `resilience4j.{retry,circuitbreaker}.instances.kimi`（max-attempts 3 指数退避、失败率 50% 滑动窗口 10、open 30s 半开）
+2. **P1 业务并行**
+   - `DiscussionEngineImpl.runAgentDiscussion` 按 roundType 分流：INDEPENDENT / FINAL → `runRoundParallel`，CHALLENGE / REVISION → `runRoundSerial`（数据依赖必须顺序）
+   - `runRoundParallel` 两阶段：① `CompletableFuture.supplyAsync(llmExecutor)` 并发 5 Agent 拿完整内容 + allOf 等齐；② 按 agents 顺序 `replayStreamAndSave` 模拟流式（chunkSize 6 / 间隔 15ms）推 WebSocket，保留前端打字 UX、前端 0 修改
+   - 为什么不真并行流式：现有 `sendStreamChunk(taskId, content)` 协议无 agentId，前端用单变量持有 `streamingMessage` 会乱
+3. **P2 Redis 队列削峰**
+   - 新建 `queue` 包：`DiscussionQueueService`（Redis List 双 key，queue 用于消费 + position 用于位置查询）；`DiscussionWorker` 独立 `workerPool`（默认 2 线程，与 `llmExecutor` 解耦避免嵌套线程池死锁）@Scheduled 500ms poll
+   - `DiscussionEngine` 接口新增 `executeCurrentRound(Long taskId)`，Worker 入口；实现内用 `transactionTemplate` 触发 Agent 懒加载后传入异步线程
+   - `startDiscussion` / `nextRound` 由 `CompletableFuture.runAsync(startAgentDiscussion)` 改为 `discussionQueue.enqueue(taskId) + ws.sendQueueStatus`；删除 `startAgentDiscussion` 私有方法
+   - `DiscussionWebSocketHandler` 新增 `sendQueueStatus(taskId, position, total)`，Worker poll 后广播队列位置变化
+**关键决策**:
+- Decorate 顺序「先熔断再重试」：熔断打开时直接抛 `CallNotPermittedException`，Retry 不会反复打上游
+- 两个独立线程池（workerPool / llmExecutor）：避免外层占满 worker 等内层、内层拿不到线程的嵌套死锁
+- 流式重放方案：用「假流式」换前端零改动 + 真并行收益
+- Redis List 而非 Streams：业务不需要 exactly-once，List 操作 O(1) + 零额外学习成本
+**编译验证**: ✅ `mvn compile` 通过
+**预期收益（参数推算，未实测）**: 单咨询 600s → 440s (-27%)、并发能力 2-3 → 8-10、429 错误率 ~18% → <1%
+**未做**: JMeter 实际压测 / 多 Key 池 / 横向扩容 / WebFlux 重写（视后续真实流量决定）
+**关联文档**: `/Users/xulei/Desktop/简历八股/13-CareerMind高并发优化深挖.md`（面试材料含口述模板 + 12 个高频追问 Q&A）
+
+### 2026-04-27 (登录收紧 + 安全鉴权 + 结果页轮询修复)
+**变更内容**: 上线后立即收紧入口与鉴权 —— 关闭注册、全 API 强制 JWT、修复结果页空白
+**影响范围**: 后端 AuthController / SecurityConfig / 新增 JwtAuthFilter；前端 LoginView / HomeView / ResultView
+**详细说明**:
+1. **关闭注册** (bc557fd): `POST /api/auth/register` 直接返回 403 "注册功能已关闭"；LoginView 移除注册分支，纯登录 UI；默认仅保留种子用户 `xuleixulei@qq.com` (id=1)
+2. **结果页轮询修复** (d27677f): 后端 generate 端点是 fire-and-forget（流式通过 WS 推送，结束后异步落库），同步返回 `success(null)`。ResultView 之前把 null 当结果直接渲染空白；改为触发后每 2s 轮询 `/merge/tasks/{id}`、最长 120s，行一出现即 settle mergeResult
+3. **全 API 强制 JWT 鉴权** (c84d31c): 此前 `SecurityConfig` 是 `anyRequest().permitAll()`（开发期临时打开），任何人都能 curl `POST /api/tasks`，仅靠前端路由守卫不够
+   - 新增 `JwtAuthFilter`（OncePerRequestFilter）：读 `Authorization: Bearer` → JwtUtil 验签 → 设置 SecurityContext
+   - `SecurityConfig` 改 `anyRequest().authenticated()`，白名单仅 `/api/auth/**` / `/api/agents/preset` / `/ws/**`；无 token 或非法 token → 401
+   - HomeView CTA 按登录状态切换 "立即开始" / "登录后开始"
+**状态**: ✅ 已上线生产（8.140.63.245）
+
 ### 2026-04-27 (生产部署上线)
 **变更内容**: 首次部署到阿里云 ECS（8.140.63.245），CareerMind 全栈服务上线
 **影响范围**: 服务器 `/opt/careermind/`、`/etc/nginx/conf.d/careermind.conf`、`careermind-backend.service`；本地 `careermind-rag/Dockerfile`
@@ -413,7 +456,7 @@ Max Tokens: 2000
 **状态**: ✅ 核心功能测试通过
 
 ## 最后更新时间
-2026-04-27（生产部署上线 → 8.140.63.245）
+2026-05-15（LLM 高并发系统改造 P0+P1+P2 落地 + 配套面试材料归档）
 
 ## 系统状态
 ✅ **4轮完整讨论流程已测试通过** - 所有4轮（独立诊断→质疑挑战→修正观点→最终陈述）均正常工作
@@ -422,6 +465,8 @@ Max Tokens: 2000
 ✅ **人工介入功能已启用** - 用户可在讨论过程中发送消息提问、给出偏好
 ✅ **个人简介功能已启用** - 用户可设置个人简介，新建咨询时自动填充为背景信息
 ✅ **首页快速咨询已启用** - 首页可直接选择Agent并快速创建咨询进入讨论
+🔒 **生产已强制鉴权** - 注册接口关闭、全 API 走 JwtAuthFilter，仅 `/api/auth/**` `/api/agents/preset` `/ws/**` 放行
+✅ **结果页轮询已修复** - 触发流式生成后轮询 `/merge/tasks/{id}` 兜底，不再因 `success(null)` 出现空白
 
 ## 测试记录
 - 2026-04-12: 完成4轮完整讨论测试

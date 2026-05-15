@@ -8,11 +8,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResponseExtractor;
 import org.springframework.web.client.RestTemplate;
@@ -24,7 +28,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -32,8 +39,31 @@ import java.util.function.Consumer;
 public class LLMGatewayImpl {
 
     private final LLMConfig llmConfig;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate llmRestTemplate;
+    private final Semaphore kimiSemaphore;
+    private final RetryRegistry retryRegistry;
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private Retry kimiRetry;
+    private CircuitBreaker kimiCircuitBreaker;
+
+    @PostConstruct
+    void initResilience() {
+        // application.yml 中 resilience4j.{retry,circuitbreaker}.instances.kimi 自动注册
+        this.kimiRetry = retryRegistry.retry("kimi");
+        this.kimiCircuitBreaker = circuitBreakerRegistry.circuitBreaker("kimi");
+    }
+
+    /** 上游闸门：限制对 LLM 提供商的并发请求数，避免触发 RPM 限流 */
+    private boolean acquireKimiSlot() {
+        try {
+            return kimiSemaphore.tryAcquire(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
 
     /**
      * 生成Agent发言内容（同步版本）
@@ -196,55 +226,84 @@ public class LLMGatewayImpl {
     }
 
     private String callKimi(String systemPrompt, String userContent) {
+        if (!acquireKimiSlot()) {
+            log.warn("Kimi semaphore 获取超时（>30s），直接降级为 mock");
+            return generateMockResponse(null);
+        }
         try {
-            LLMConfig.KimiConfig config = llmConfig.getKimi();
+            Supplier<String> base = () -> doCallKimi(systemPrompt, userContent);
+            // 先熔断、再重试：熔断打开时直接抛 CallNotPermittedException，Retry 不会反复触发上游
+            Supplier<String> withCb = CircuitBreaker.decorateSupplier(kimiCircuitBreaker, base);
+            Supplier<String> decorated = Retry.decorateSupplier(kimiRetry, withCb);
+            try {
+                return decorated.get();
+            } catch (Exception e) {
+                log.error("Kimi 调用最终失败（已重试+熔断），启用 mock 降级: {}", e.toString());
+                return generateMockResponse(null);
+            }
+        } finally {
+            kimiSemaphore.release();
+        }
+    }
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(config.getApiKey());
+    /** 真正发起一次 Kimi HTTP 调用，业务异常抛出由外层 Retry/CircuitBreaker 计数 */
+    private String doCallKimi(String systemPrompt, String userContent) {
+        LLMConfig.KimiConfig config = llmConfig.getKimi();
 
-            ObjectNode requestBody = objectMapper.createObjectNode();
-            requestBody.put("model", config.getModel());
-            requestBody.put("temperature", config.getTemperature());
-            requestBody.put("max_tokens", config.getMaxTokens());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(config.getApiKey());
 
-            ArrayNode messages = requestBody.putArray("messages");
+        ObjectNode requestBody = objectMapper.createObjectNode();
+        requestBody.put("model", config.getModel());
+        requestBody.put("temperature", config.getTemperature());
+        requestBody.put("max_tokens", config.getMaxTokens());
 
-            ObjectNode systemMsg = messages.addObject();
-            systemMsg.put("role", "system");
-            systemMsg.put("content", systemPrompt);
+        ArrayNode messages = requestBody.putArray("messages");
 
-            ObjectNode userMsg = messages.addObject();
-            userMsg.put("role", "user");
-            userMsg.put("content", userContent);
+        ObjectNode systemMsg = messages.addObject();
+        systemMsg.put("role", "system");
+        systemMsg.put("content", systemPrompt);
 
+        ObjectNode userMsg = messages.addObject();
+        userMsg.put("role", "user");
+        userMsg.put("content", userContent);
+
+        try {
             HttpEntity<String> entity = new HttpEntity<>(
                     objectMapper.writeValueAsString(requestBody),
                     headers
             );
 
-            ResponseEntity<String> response = restTemplate.postForEntity(
+            ResponseEntity<String> response = llmRestTemplate.postForEntity(
                     config.getBaseUrl() + "/chat/completions",
                     entity,
                     String.class
             );
 
-            if (response.getStatusCode() == HttpStatus.OK) {
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode jsonResponse = objectMapper.readTree(response.getBody());
                 return jsonResponse.path("choices").get(0)
                         .path("message").path("content").asText();
             }
 
-            log.error("Kimi API 调用失败: {}", response.getStatusCode());
-            return generateMockResponse(null);
+            throw new IllegalStateException("Kimi API 非 2xx: " + response.getStatusCode());
 
         } catch (Exception e) {
-            log.error("调用 Kimi API 失败", e);
-            return generateMockResponse(null);
+            // 抛 RuntimeException 才能被 Resilience4j Retry/CircuitBreaker 捕获
+            throw new RuntimeException("Kimi API 调用异常: " + e.getMessage(), e);
         }
     }
 
     private void callKimiStream(String systemPrompt, String userContent, Consumer<String> onChunk, Runnable onComplete) {
+        // 流式调用持有连接时间长（数十秒级），必须走 Semaphore 限速；
+        // 不加 Retry（中途断流再重试代价大，且 onChunk 已发出的内容无法回滚）
+        if (!acquireKimiSlot()) {
+            log.warn("Kimi 流式 semaphore 等待超时，直接 mock 输出");
+            onChunk.accept(generateMockResponse(null));
+            onComplete.run();
+            return;
+        }
         try {
             LLMConfig.KimiConfig config = llmConfig.getKimi();
 
@@ -267,16 +326,6 @@ public class LLMGatewayImpl {
             ObjectNode userMsg = messages.addObject();
             userMsg.put("role", "user");
             userMsg.put("content", userContent);
-
-            HttpEntity<String> entity = new HttpEntity<>(
-                    objectMapper.writeValueAsString(requestBody),
-                    headers
-            );
-
-            // 配置支持流的RestTemplate
-            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-            factory.setBufferRequestBody(false);
-            RestTemplate streamRestTemplate = new RestTemplate(factory);
 
             ResponseExtractor<Void> extractor = (ClientHttpResponse response) -> {
                 try (BufferedReader reader = new BufferedReader(
@@ -307,7 +356,8 @@ public class LLMGatewayImpl {
                 return null;
             };
 
-            streamRestTemplate.execute(
+            // 复用池化 llmRestTemplate（不再每次 new RestTemplate）
+            llmRestTemplate.execute(
                     config.getBaseUrl() + "/chat/completions",
                     HttpMethod.POST,
                     request -> {
@@ -321,9 +371,11 @@ public class LLMGatewayImpl {
             onComplete.run();
 
         } catch (Exception e) {
-            log.error("调用 Kimi 流式 API 失败", e);
+            log.error("调用 Kimi 流式 API 失败，发出 mock 兜底", e);
             onChunk.accept(generateMockResponse(null));
             onComplete.run();
+        } finally {
+            kimiSemaphore.release();
         }
     }
 
@@ -355,7 +407,7 @@ public class LLMGatewayImpl {
                     headers
             );
 
-            ResponseEntity<String> response = restTemplate.postForEntity(
+            ResponseEntity<String> response = llmRestTemplate.postForEntity(
                     config.getBaseUrl() + "/chat/completions",
                     entity,
                     String.class
@@ -400,10 +452,6 @@ public class LLMGatewayImpl {
             userMsg.put("role", "user");
             userMsg.put("content", userContent);
 
-            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-            factory.setBufferRequestBody(false);
-            RestTemplate streamRestTemplate = new RestTemplate(factory);
-
             ResponseExtractor<Void> extractor = (ClientHttpResponse response) -> {
                 try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
@@ -433,7 +481,7 @@ public class LLMGatewayImpl {
                 return null;
             };
 
-            streamRestTemplate.execute(
+            llmRestTemplate.execute(
                     config.getBaseUrl() + "/chat/completions",
                     HttpMethod.POST,
                     request -> {
@@ -478,7 +526,7 @@ public class LLMGatewayImpl {
                     headers
             );
 
-            ResponseEntity<String> response = restTemplate.postForEntity(
+            ResponseEntity<String> response = llmRestTemplate.postForEntity(
                     config.getBaseUrl() + "/messages",
                     entity,
                     String.class

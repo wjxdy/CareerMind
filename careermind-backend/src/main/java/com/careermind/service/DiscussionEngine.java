@@ -12,4 +12,7 @@ public interface DiscussionEngine {
     DiscussionDto stopDiscussion(Long taskId);
     DiscussionDto nextRound(Long taskId);
     DiscussionDto addUserMessage(Long taskId, String content);
+
+    /** Worker 入口：同步执行当前 Discussion 的"当前轮"（不创建/不切轮） */
+    void executeCurrentRound(Long taskId);
 }

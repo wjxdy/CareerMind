@@ -65,6 +65,19 @@ public class DiscussionWebSocketHandler extends TextWebSocketHandler {
         sendToTask(taskId, payload);
     }
 
+    /**
+     * P2: 推送队列位置变化。
+     *  - position=0 表示已开始执行（不在队列中）
+     *  - position>0 表示在队列中的当前位置（1-based）
+     */
+    public void sendQueueStatus(Long taskId, long position, long total) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("type", "queue_status");
+        payload.put("position", position);
+        payload.put("total", total);
+        sendToTask(taskId, payload);
+    }
+
     public void sendMessageToTask(Long taskId, MessageDto messageDto) {
         WebSocketSession session = taskSessions.get(taskId);
         if (session != null && session.isOpen()) {
